@@ -10,10 +10,11 @@ use Lemonade\Admin\Authorization\CurrentPrincipalProviderInterface;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
+use Lemonade\Cms\Auction\CmsAuctionServiceProvider;
 use Lemonade\Cms\Auction\Editor\AuctionEditor;
 use Lemonade\Cms\Auction\Editor\AuctionEditorValidationSchema;
-use Lemonade\Cms\Auction\Models\AuctionModel;
 use Lemonade\Cms\Content\CmsContentLifecycle;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Database\Connection\ConnectionInterface;
 use Lemonade\Framework\Database\Database;
 use Lemonade\Framework\Database\DatabaseDriverInterface;
@@ -84,7 +85,7 @@ final class AuctionEditorAuthorizationTest extends TestCase
         $principal->method('currentUser')->willReturn(new AuthenticatedUser(42, 'owner@example.test'));
 
         return new AuctionEditor(
-            new AuctionModel($driver),
+            new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()),
             $this->instanceWithoutConstructor(CmsContentLifecycle::class),
             $this->instanceWithoutConstructor(LanguageRegistry::class),
             $this->instanceWithoutConstructor(LocalActorGuard::class),

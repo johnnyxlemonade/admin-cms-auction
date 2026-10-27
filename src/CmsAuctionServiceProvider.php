@@ -10,14 +10,9 @@ use Lemonade\Admin\Cms\Content\CmsContentAdminProvider;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
-use Lemonade\Cms\Auction\Actions\AuctionAssignOwnerAction;
-use Lemonade\Cms\Auction\Actions\AuctionChangeUrlAction;
-use Lemonade\Cms\Auction\Actions\AuctionDeleteAction;
-use Lemonade\Cms\Auction\Actions\AuctionRestoreAction;
 use Lemonade\Cms\Auction\DataGrid\AuctionDataGrid;
 use Lemonade\Cms\Auction\Editor\AuctionEditor;
 use Lemonade\Cms\Auction\Editor\AuctionEditorValidationSchema;
-use Lemonade\Cms\Auction\Models\AuctionModel;
 use Lemonade\Cms\Content\CmsContentDefinition;
 use Lemonade\Cms\Content\CmsContentLifecycle;
 use Lemonade\Cms\Content\CmsDomainMapping;
@@ -41,30 +36,21 @@ final readonly class CmsAuctionServiceProvider implements ServiceProviderInterfa
      */
     public function register(ContainerBuilderInterface $container): void
     {
-        $container->scoped('cms.auction.lifecycle', static function (ContainerInterface $container): CmsContentLifecycle {
-            $definition = new CmsContentDefinition(
-                moduleCode: ModuleManifest::CODE,
-                entityType: 'cms_auction',
-                rootTable: 'cms_auction',
-                translationTable: 'cms_auction_translation',
-                translationForeignKey: 'article_id',
-                tagTable: 'cms_auction_translation_tag',
-                translationUniqueConstraint: 'uq_cms_auction_translation_locale',
-                validationPrefix: 'auction',
-                dataClass: AuctionData::class,
-            );
-
-            return new CmsContentLifecycle(
-                $definition,
-                new CmsContentModel($container->get(Database::class), $definition),
-                new CmsDomainMapping(AuctionData::class),
-                $container->get(CmsRouteReservationService::class),
-                $container->get(Slugger::class),
-                $container->get(CmsAdminRuntime::class),
-            );
-        });
+        $container->scoped('cms.auction.definition', static fn(): CmsContentDefinition => self::contentDefinition());
+        $container->scoped('cms.auction.content_model', static fn(ContainerInterface $container): CmsContentModel => new CmsContentModel(
+            $container->get(Database::class),
+            $container->get('cms.auction.definition'),
+        ));
+        $container->scoped('cms.auction.lifecycle', static fn(ContainerInterface $container): CmsContentLifecycle => new CmsContentLifecycle(
+            $container->get('cms.auction.definition'),
+            $container->get('cms.auction.content_model'),
+            new CmsDomainMapping(AuctionData::class),
+            $container->get(CmsRouteReservationService::class),
+            $container->get(Slugger::class),
+            $container->get(CmsAdminRuntime::class),
+        ));
         $container->scoped(AuctionEditor::class, static fn(ContainerInterface $container): AuctionEditor => new AuctionEditor(
-            $container->get(AuctionModel::class),
+            $container->get('cms.auction.read'),
             $container->get('cms.auction.lifecycle'),
             $container->get(LanguageRegistry::class),
             $container->get(LocalActorGuard::class),
@@ -73,21 +59,25 @@ final readonly class CmsAuctionServiceProvider implements ServiceProviderInterfa
             $container->get(UrlGenerator::class),
             $container->get(AuthorizationService::class),
         ));
-        foreach ([AuctionChangeUrlAction::class, AuctionDeleteAction::class, AuctionRestoreAction::class] as $action) {
-            $container->scoped($action, static fn(ContainerInterface $container): object => new $action(
-                $container->get('cms.auction.lifecycle'),
-                $container->get(LocalActorGuard::class),
-                $container->get(AuctionModel::class),
-                $container->get(AuthorizationService::class),
-            ));
-        }
-        $container->scoped(AuctionAssignOwnerAction::class, static fn(ContainerInterface $container): AuctionAssignOwnerAction => new AuctionAssignOwnerAction(
-            $container->get('cms.auction.lifecycle'),
-            $container->get(AuctionModel::class),
-            $container->get(LocalActorGuard::class),
-            $container->get(AuthorizationService::class),
-        ));
         self::adminProvider()->register($container);
+    }
+
+    /**
+     * Vrati registrovane tabulky a atributove mapovani obsahu
+     */
+    public static function contentDefinition(): CmsContentDefinition
+    {
+        return new CmsContentDefinition(
+            moduleCode: ModuleManifest::CODE,
+            entityType: 'cms_auction',
+            rootTable: 'cms_auction',
+            translationTable: 'cms_auction_translation',
+            translationForeignKey: 'article_id',
+            tagTable: 'cms_auction_translation_tag',
+            translationUniqueConstraint: 'uq_cms_auction_translation_locale',
+            validationPrefix: 'auction',
+            dataClass: AuctionData::class,
+        );
     }
 
     /**
@@ -110,10 +100,8 @@ final readonly class CmsAuctionServiceProvider implements ServiceProviderInterfa
             dataGridService: AuctionDataGrid::class,
             pageService: AuctionModulePageProvider::class,
             editorService: AuctionEditor::class,
-            changeUrlService: AuctionChangeUrlAction::class,
-            deleteService: AuctionDeleteAction::class,
-            restoreService: AuctionRestoreAction::class,
-            assignOwnerService: AuctionAssignOwnerAction::class,
+            lifecycleService: 'cms.auction.lifecycle',
+            contentDefinitionService: 'cms.auction.definition',
         );
     }
 }

@@ -18,9 +18,9 @@ use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Cms\Auction\AuctionData;
-use Lemonade\Cms\Auction\Models\AuctionModel;
 use Lemonade\Cms\Content\CmsContentInput;
 use Lemonade\Cms\Content\CmsContentLifecycle;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Framework\Validation\ValidationSchema;
 
@@ -38,7 +38,7 @@ final readonly class AuctionEditor implements
      * @param CmsContentLifecycle<AuctionData> $service
      */
     public function __construct(
-        private AuctionModel $auction,
+        private CmsContentReadModel $auction,
         private CmsContentLifecycle $service,
         private LanguageRegistry $languages,
         private LocalActorGuard $actors,

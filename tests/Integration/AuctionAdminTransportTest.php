@@ -6,21 +6,29 @@ namespace Lemonade\Cms\Auction\Tests\Integration;
 
 use Lemonade\Admin\Action\ModuleActionDispatcher;
 use Lemonade\Admin\Action\ModuleActionRegistry;
+use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Audit\AuditLogService;
 use Lemonade\Admin\Auth\AuthenticationService;
 use Lemonade\Admin\Auth\CurrentUserProvider;
 use Lemonade\Admin\Auth\LocalAuthenticationProvider;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Cms\Content\CmsAdminRuntime;
+use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
 use Lemonade\Admin\DataGrid\DataGridRegistry;
+use Lemonade\Admin\DataGrid\Query\DataGridQuery;
+use Lemonade\Admin\DataGrid\Query\DataGridQueryValidator;
+use Lemonade\Admin\Editor\AdminEditor\Rendering\AdminEditorRenderContext;
 use Lemonade\Admin\Editor\EditorDispatcher;
 use Lemonade\Admin\Editor\EditorRegistry;
 use Lemonade\Admin\Editor\Lock\EditorLockManager;
 use Lemonade\Admin\Editor\Lock\EditorLockOwnerReleaserInterface;
 use Lemonade\Admin\Event\DomainEventDispatcher;
 use Lemonade\Admin\Event\TransactionalEventProcessor;
+use Lemonade\Admin\Http\AdminAuthorizationResponseHandler;
+use Lemonade\Admin\Http\Controller\DataGridController;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Identity\LocalUserDirectory;
+use Lemonade\Admin\Localization\AdminUiLocale;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleAccessPolicy;
 use Lemonade\Admin\Module\AdminModuleRegistry;
@@ -28,9 +36,19 @@ use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Module\ModuleProviderResolver;
 use Lemonade\Admin\Navigation\AdminNavigationGroupRegistry;
 use Lemonade\Admin\Page\ModulePageRegistry;
+use Lemonade\Admin\Platform\Migrations\CreateCoreFiles;
+use Lemonade\Admin\Presentation\AdminFileUploadComponent;
+use Lemonade\Admin\Presentation\AdminFileUsageRegistry;
+use Lemonade\Admin\Routing\AdminRoutingConfiguration;
+use Lemonade\Cms\Auction\AuctionData;
+use Lemonade\Cms\Auction\AuctionModulePageProvider;
 use Lemonade\Cms\Auction\CmsAuctionServiceProvider;
+use Lemonade\Cms\Auction\DataGrid\AuctionDataGrid;
 use Lemonade\Cms\Auction\Migrations\CreateAuctionArticles;
 use Lemonade\Cms\Auction\ModuleManifest;
+use Lemonade\Cms\Content\CmsContentInput;
+use Lemonade\Cms\Content\CmsContentLifecycle;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Cms\Routing\Cms\CmsReservedPathGuard;
 use Lemonade\Cms\Routing\Cms\CmsRouteCandidateResolver;
 use Lemonade\Cms\Routing\Cms\CmsRouteRepository;
@@ -40,7 +58,9 @@ use Lemonade\Cms\Routing\Locale\PublicLocaleSnapshot;
 use Lemonade\Framework\Cache\CacheManager;
 use Lemonade\Framework\Cache\Store\ArrayCacheItemPool;
 use Lemonade\Framework\Container\Container;
+use Lemonade\Framework\Container\ContainerInterface;
 use Lemonade\Framework\Container\ScopeKind;
+use Lemonade\Framework\Core\Http\ResponseBuilder;
 use Lemonade\Framework\Database\Connection\DatabaseConfig;
 use Lemonade\Framework\Database\Database;
 use Lemonade\Framework\Database\Driver\Mysql\MysqlConnection;
@@ -51,6 +71,14 @@ use Lemonade\Framework\Database\Driver\Mysql\MysqlSqlEscaper;
 use Lemonade\Framework\Database\Schema\Schema;
 use Lemonade\Framework\Database\Schema\SchemaCompiler;
 use Lemonade\Framework\Database\Sql\IdentifierProtector;
+use Lemonade\Framework\Http\Request\HttpRequestInspector;
+use Lemonade\Framework\Http\Response\Responses;
+use Lemonade\Framework\Image\Value\ImageDimensions;
+use Lemonade\Framework\Image\Value\ImageFormat;
+use Lemonade\Framework\Image\Value\ImageQuality;
+use Lemonade\Framework\Image\Value\ImageVariantDefinition;
+use Lemonade\Framework\Localization\Config\LocalizationConfig;
+use Lemonade\Framework\Localization\Config\LocalizationUrlConfig;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Observability\Benchmark\Benchmark;
 use Lemonade\Framework\Routing\ControllerAction;
@@ -58,9 +86,15 @@ use Lemonade\Framework\Routing\Router;
 use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Framework\Security\Csrf\CsrfTokenManager;
 use Lemonade\Framework\Session\Contract\SessionInterface;
+use Lemonade\Framework\Upload\Config\FileUploadProfileConfig;
+use Lemonade\Framework\Upload\Config\ImageUploadProfileConfig;
+use Lemonade\Framework\Upload\Config\UploadConfig;
 use Lemonade\Framework\Validation\FormValidation;
 use Lemonade\Framework\Validation\Rule\RuleRegistry;
 use Lemonade\Framework\Validation\ValidationRuleResolver;
+use Lemonade\Image\ImageUrlGenerator;
+use Lemonade\Image\ImageVariantRegistry;
+use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -99,6 +133,7 @@ final class AuctionAdminTransportTest extends TestCase
         $db->statement('INSERT INTO system_user_role VALUES (7, 1)');
         $db->statement("INSERT INTO system_language VALUES ('cs','Czech',1,1,1), ('en','English',1,0,2)");
         (new CreateAuctionArticles())->up(new Schema(new SchemaCompiler(new MysqlSchemaGrammar(new MysqlSqlEscaper($escaper), $config)), $driver));
+        (new CreateCoreFiles())->up(new Schema(new SchemaCompiler(new MysqlSchemaGrammar(new MysqlSqlEscaper($escaper), $config)), $driver));
         $session = $this->createMock(SessionInterface::class);
         $session->method('get')->willReturnCallback(static fn(string $key): mixed => $key === 'admin.auth.user_id' ? 7 : null);
         $audit = new AuditLogService($db);
@@ -116,6 +151,23 @@ final class AuctionAdminTransportTest extends TestCase
         };
         $router = new Router();
         $router->getNamed('admin.content.module.edit', '/admin/content/{module}/{id}', ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
+        $router->postNamed('admin.content.module.ajax.entity', '/admin/content/{module}/{id}/ajax', ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
+        foreach ([
+            'admin.content.module.update' => '/admin/content/{module}/{id}/save',
+            'admin.content.module.index' => '/admin/content/{module}',
+            'admin.file.chunk.start' => '/admin/files/{module}/{entity}/{usage}/start',
+            'admin.file.chunk.append' => '/admin/files/{uploadId}/append',
+            'admin.file.chunk.complete' => '/admin/files/{uploadId}/complete',
+            'admin.file.chunk.abort' => '/admin/files/{uploadId}/abort',
+            'admin.file.collection.index' => '/admin/files/{module}/{entity}/{usage}',
+            'admin.file.collection.remove' => '/admin/files/{module}/{entity}/{usage}/{file}/remove',
+            'admin.file.collection.reorder' => '/admin/files/{module}/{entity}/{usage}/reorder',
+            'admin.file.collection.rename.modal' => '/admin/files/{module}/{entity}/{usage}/{file}/rename',
+            'api.file.download' => '/files/{file}',
+            'api.image.show' => '/images/{module}/{variant}/{image}',
+        ] as $routeName => $path) {
+            $router->getNamed($routeName, $path, ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
+        }
         $guard = new CmsReservedPathGuard(new Router(), new ServerRequest('GET', '/'), $localeRegistry);
         $routes = new CmsRouteReservationService(new CmsRouteRepository($db), new CmsRouteCandidateResolver(), $guard);
         $modules = new AdminModuleRegistry(new AdminNavigationGroupRegistry());
@@ -136,6 +188,20 @@ final class AuctionAdminTransportTest extends TestCase
         $editors->register('cms.auction', \Lemonade\Cms\Auction\Editor\AuctionEditor::class);
         $pages->registerEditor('cms.auction', \Lemonade\Cms\Auction\AuctionModulePageProvider::class);
         CmsAuctionServiceProvider::adminProvider()->registerActions($actions);
+        $grids->register('cms.auction', AuctionDataGrid::class);
+        $container->instance(ModuleActionPresentationFactory::class, new ModuleActionPresentationFactory($actions, $moduleRoutes, $authorization, $translator, new UrlGenerator($router)));
+        $variants = new ImageVariantRegistry();
+        foreach (['datagrid', 'thumbnail', 'preview'] as $variant) {
+            $variants->register($variant, new ImageVariantDefinition(new ImageDimensions(32, 32), ImageFormat::Webp, ImageQuality::fromInt(82)));
+        }
+        $container->instance(ImageUrlGenerator::class, new ImageUrlGenerator(new UrlGenerator($router), $variants));
+        $usages = new AdminFileUsageRegistry();
+        $usages->registerCapabilities('cms.auction', (new ModuleManifest())->fileCapabilities());
+        $container->instance(AdminFileUsageRegistry::class, $usages);
+        $container->instance(UploadConfig::class, new UploadConfig(
+            ['admin-file' => new FileUploadProfileConfig('test', 1024, ['pdf'])],
+            ['admin-image' => new ImageUploadProfileConfig('test', 1024, ['jpg'], true, null, null, null, null)],
+        ));
         $scope = $container->beginScope(ScopeKind::Request);
         $resolver = new ModuleProviderResolver($grids, $editors, $pages, $actions, $scope);
         $validation = new FormValidation($translator, new ValidationRuleResolver(new RuleRegistry(), $scope));
@@ -214,12 +280,95 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertSame('English auction', ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['title'] ?? null);
         self::assertNull(($db->table('cms_auction')->where('id', $id)->first() ?? [])['author_name'] ?? null);
 
+        $db->statement("INSERT INTO system_user VALUES (9, 'owner@example.test', 'New', 'Owner', 1, NULL)");
+        $invalidUrl = $transport->dispatch('auction', $id, ['action' => 'change-url', 'payload' => ['locale' => []]]);
+        self::assertSame(['url_segment' => 'admin.url_segment.invalid'], $invalidUrl->errors());
+        $invalidOwner = $transport->dispatch('auction', $id, ['action' => 'assign-owner', 'payload' => ['owner_id' => 0]]);
+        self::assertSame(['owner_id' => 'auction.validation.owner_invalid'], $invalidOwner->errors());
+        foreach ([null, 999999] as $missingId) {
+            try {
+                $result = $transport->dispatch('auction', $missingId, ['action' => 'delete', 'payload' => []]);
+                self::assertFalse($result->successful());
+            } catch (\Lemonade\Admin\Action\Exception\ModuleActionException $exception) {
+                self::assertSame(403, $exception->status());
+            }
+        }
+        try {
+            $transport->dispatch('auction', $id, ['action' => 'delete', 'payload' => 'invalid']);
+            self::fail('Invalid transport payload must be rejected.');
+        } catch (\Lemonade\Admin\Action\Exception\ModuleActionException $exception) {
+            self::assertSame(422, $exception->status());
+            self::assertSame(\Lemonade\Admin\Http\AdminErrorCode::VALIDATION_FAILED, $exception->error());
+        }
+        $url = $transport->dispatch('auction', $id, ['action' => 'change-url', 'payload' => ['locale' => 'cs', 'url_segment' => 'finalni-cesta']]);
+        self::assertSame('admin.url_segment.updated', $url->messageKey());
+        self::assertSame(['urlSegment' => 'finalni-cesta'], $url->data());
+        $db->statement("CREATE TRIGGER auction_action_audit_failure BEFORE INSERT ON system_audit_log FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'audit failure'");
+        try {
+            $transport->dispatch('auction', $id, ['action' => 'delete', 'payload' => []]);
+            self::fail('Audit failure must roll back deletion.');
+        } catch (\Throwable $exception) {
+            self::assertStringContainsString('audit failure', $exception->getMessage());
+        }
+        $db->statement('DROP TRIGGER auction_action_audit_failure');
+        self::assertNull(($db->table('cms_auction')->where('id', $id)->first() ?? [])['deleted_at'] ?? null);
+        self::assertSame('finalni-cesta', ($db->table('cms_route')->where('entity_id', $id)->where('locale', 'cs')->first() ?? [])['path'] ?? null);
+
+        $db->statement('UPDATE system_role SET is_super_admin = 0 WHERE id = 1');
+        $db->statement("INSERT INTO system_permission VALUES (3,'cms.auction.delete_own','delete','cms.auction'), (4,'cms.auction.restore_own','restore','cms.auction'), (5,'cms.auction.assign_owner','assign','cms.auction')");
+        $db->statement('INSERT INTO system_role_permission VALUES (1,3), (1,4), (1,5)');
+        $authorization->invalidate();
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'assign-owner', 'payload' => ['owner_id' => 7]])->successful());
+        $deleted = $transport->dispatch('auction', $id, ['action' => 'delete', 'payload' => []]);
+        self::assertSame('auction.actions.deleted', $deleted->messageKey());
+        self::assertTrue($deleted->refreshGrid());
+        $restored = $transport->dispatch('auction', $id, ['action' => 'restore', 'payload' => []]);
+        self::assertSame('auction.actions.restored', $restored->messageKey());
+        self::assertTrue($restored->refreshGrid());
+        $db->statement('UPDATE cms_auction SET owner_id = 9 WHERE id = ' . (int) $id);
+        foreach (['change-url', 'delete', 'restore', 'assign-owner'] as $action) {
+            try {
+                $transport->dispatch('auction', $id, ['action' => $action, 'payload' => []]);
+                self::fail('Own permission must reject another owner.');
+            } catch (\Lemonade\Admin\Action\Exception\ModuleActionException $exception) {
+                self::assertSame(403, $exception->status());
+            }
+        }
+        $db->statement("INSERT INTO system_permission VALUES (6,'cms.auction.view','view','cms.auction'), (7,'cms.auction.edit','edit','cms.auction'), (8,'cms.auction.delete','delete','cms.auction'), (9,'cms.auction.restore','restore','cms.auction')");
+        $db->statement('INSERT INTO system_role_permission VALUES (1,6), (1,7), (1,8), (1,9)');
+        $authorization->invalidate();
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'change-url', 'payload' => ['locale' => 'cs', 'url_segment' => 'globalni-cesta']])->successful());
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'delete', 'payload' => []])->successful());
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'restore', 'payload' => []])->successful());
+        $db->statement('DELETE FROM system_role_permission WHERE permission_id = 5');
+        $authorization->invalidate();
+        try {
+            $transport->dispatch('auction', $id, ['action' => 'assign-owner', 'payload' => ['owner_id' => 7]]);
+            self::fail('Assign owner requires its separate permission.');
+        } catch (\Lemonade\Admin\Action\Exception\ModuleActionException $exception) {
+            self::assertSame(403, $exception->status());
+            self::assertSame(\Lemonade\Admin\Http\AdminErrorCode::PERMISSION_DENIED, $exception->error());
+        }
+        $db->statement('INSERT INTO system_role_permission VALUES (1,5)');
+        $authorization->invalidate();
+        $assignedByGlobalView = $transport->dispatch('auction', $id, ['action' => 'assign-owner', 'payload' => ['owner_id' => 7]]);
+        self::assertSame('auction.actions.owner_assigned', $assignedByGlobalView->messageKey());
+        self::assertTrue($assignedByGlobalView->refreshPage());
+        $db->statement('UPDATE cms_auction SET owner_id = 7 WHERE id = ' . (int) $id);
+        $db->statement('UPDATE system_role SET is_super_admin = 1 WHERE id = 1');
+        $authorization->invalidate();
+
         self::assertTrue($transport->dispatch('auction', $id, ['action' => 'delete', 'payload' => []])->successful());
         self::assertTrue($transport->dispatch('auction', $id, ['action' => 'restore', 'payload' => []])->successful());
         self::assertSame(1, (int) (($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['publication_state'] ?? 0));
-        $db->statement("INSERT INTO system_user VALUES (9, 'owner@example.test', 'New', 'Owner', 1, NULL)");
-        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'assign-owner', 'payload' => ['owner_id' => 9]])->successful());
+        $assigned = $transport->dispatch('auction', $id, ['action' => 'assign-owner', 'payload' => ['owner_id' => 9]]);
+        self::assertTrue($assigned->successful());
+        self::assertSame('auction.actions.owner_assigned', $assigned->messageKey());
+        self::assertTrue($assigned->refreshPage());
         self::assertSame(9, (int) (($db->table('cms_auction')->where('id', $id)->first() ?? [])['owner_id'] ?? 0));
+        foreach (['deleted', 'restored', 'owner_transferred'] as $event) {
+            self::assertContains('cms.auction.' . $event, array_column($db->table('system_audit_log')->getArray(), 'event_code'));
+        }
         self::assertSame('active', ($db->table('cms_auction')->where('id', $id)->first() ?? [])['auction_state'] ?? null);
         $beforeOwnerNoOp = $db->table('system_audit_log')->getArray();
         self::assertTrue($transport->dispatch('auction', $id, ['action' => 'assign-owner', 'payload' => ['owner_id' => 9]])->successful());
@@ -228,5 +377,240 @@ final class AuctionAdminTransportTest extends TestCase
         foreach (['created', 'updated', 'translation_updated', 'translation_created', 'published', 'unpublished', 'deleted', 'restored', 'owner_transferred'] as $event) {
             self::assertContains('cms.auction.' . $event, $events);
         }
+
+        $http = new Psr17Factory();
+        $gridController = new DataGridController(
+            $moduleRoutes,
+            new AdminModuleAccessPolicy($authorization, $user),
+            $resolver,
+            new DataGridQueryValidator(),
+            $authorization,
+            new AdminAuthorizationResponseHandler(new HttpRequestInspector(), new AdminRoutingConfiguration('/admin')),
+            new AdminUiLocale(new LocalizationConfig('cs', 'cs', ['cs', 'en'], new LocalizationUrlConfig(false, '', '', 'locale', false)), $session, $translator),
+            new Responses(new ResponseBuilder($http, $http)),
+        );
+        $this->assertSharedReading($db, $scope, $dispatcher, $authorization, $gridController);
+    }
+
+    /**
+     * Overuje sdilene cteni na skutecnem schematu modulu i v Admin transportu
+     */
+    private function assertSharedReading(Database $db, ContainerInterface $scope, EditorDispatcher $editor, AuthorizationService $authorization, DataGridController $gridController): void
+    {
+        $db->statement('UPDATE system_role SET is_super_admin = 1 WHERE id = 1');
+        $authorization->invalidate();
+        $db->statement("INSERT INTO system_user VALUES (10, 'deleted@example.test', 'Deleted', 'Actor', 0, '2026-01-01'), (11, 'email@example.test', '', '', 1, NULL)");
+        $db->statement("INSERT INTO system_language VALUES ('de','German',0,0,3), ('fr','French',1,0,4), ('it','Italian',0,0,5)");
+
+        /** @var CmsContentLifecycle<AuctionData> $lifecycle */
+        $lifecycle = $scope->get('cms.auction.lifecycle');
+        /** @var CmsContentReadModel $reader */
+        $reader = $scope->get('cms.auction.read');
+        /** @var CmsContentDataGrid $grid */
+        $grid = $scope->get('cms.auction.grid_query');
+        $domain = AuctionData::fromEditor(['author_name' => 'Domain Author', 'starting_price' => '1234567890123.50', 'currency' => 'CZK', 'auction_at' => '2028-03-04T12:30', 'auction_state' => 'active', 'external_url' => 'https://example.test/domain', 'location' => 'Ostrava']);
+        $first = $lifecycle->createDraft(7, 'cs');
+        $second = $lifecycle->createDraft(9, 'cs');
+        $deleted = $lifecycle->createDraft(7, 'cs');
+        foreach ([$first => 'Alpha', $second => 'Bravo', $deleted => 'Charlie'] as $id => $title) {
+            $lifecycle->save(9, $id, CmsContentInput::fromEditor([
+                'locale' => 'cs', 'title' => 'Read fixture ' . $title,
+                'page_title' => 'SEO ' . $title, 'summary' => 'Summary ' . $title,
+                'content' => '<p>Content ' . $title . '</p>', 'meta_description' => 'Description ' . $title,
+                'tags' => ['Zulu', 'Alpha'], 'publication_state' => $id === $second ? '1' : '2',
+                'published_at' => $id === $second ? '' : '2028-01-02T10:30',
+            ]), $domain);
+        }
+        $lifecycle->save(9, $first, CmsContentInput::fromEditor(['locale' => 'en', 'title' => 'Read fixture English', 'tags' => ['English tag']]), $domain);
+        $lifecycle->changeUrlSegment(9, $first, 'cs', 'read-fixture-canonical');
+        $db->table('cms_auction_translation')->insert(['article_id' => $first, 'locale' => 'de', 'title' => 'Read fixture German', 'publication_state' => 1]);
+        // Two equal positions exercise the existing tag-id tie breaker.
+        $cs = $reader->translation($first, 'cs');
+        self::assertNotNull($cs);
+        $db->table('cms_auction_translation_tag')->where('translation_id', $cs['id'])->set(['sort_order' => 0])->update();
+        $lifecycle->delete(10, $deleted);
+        $db->table('cms_auction')->whereIn('id', [$first, $second])->set(['updated_at' => '2028-01-02 11:00:00'])->update();
+
+        self::assertTrue($reader->exists($first));
+        self::assertFalse($reader->exists($deleted));
+        self::assertFalse($reader->exists(999999));
+        self::assertSame(7, $reader->ownerId($deleted));
+        self::assertNull($reader->ownerId(999999));
+        self::assertNull($reader->findForEditor($deleted));
+        self::assertNull($reader->findForEditor(999999));
+        self::assertNull($reader->metadata($deleted));
+        self::assertNull($reader->translation($first, 'fr'));
+        self::assertNull($reader->publication($first, 'fr'));
+        self::assertNotNull($reader->translation($deleted, 'cs'));
+        self::assertSame('read-fixture-canonical', $cs['canonical_path']);
+        self::assertSame(2, (int) ($reader->publication($first, 'cs')['publication_state'] ?? -1));
+        self::assertSame('2028-01-02 10:30:00', $reader->publication($first, 'cs')['published_at'] ?? null);
+        $loaded = $editor->updateData('cms.auction', $first);
+        $article = $loaded->data()['article'];
+        self::assertSame($reader->findForEditor($first), $article);
+        self::assertNotNull($article);
+        self::assertSame('Domain Author', $article['author_name']);
+        self::assertSame('Test User', $article['created_by_name']);
+        self::assertSame('New Owner', $article['updated_by_name']);
+        self::assertSame('Test User', $article['owner_name']);
+        self::assertSame('—', $article['deleted_by_name']);
+        self::assertSame('2028-01-02 11:00:00', $article['updated_at']);
+        $translations = array_column($article['translations'], null, 'locale');
+        self::assertSame(['cs', 'de', 'en'], array_keys($translations));
+        self::assertSame(['Zulu', 'Alpha'], $translations['cs']['tags']);
+        self::assertSame(['English tag'], $translations['en']['tags']);
+        self::assertSame([], $translations['de']['tags']);
+        self::assertSame('SEO Alpha', $translations['cs']['page_title']);
+        self::assertSame('Summary Alpha', $translations['cs']['summary']);
+        self::assertSame('<p>Content Alpha</p>', $translations['cs']['content']);
+        self::assertSame('Description Alpha', $translations['cs']['meta_description']);
+        self::assertSame('read-fixture-canonical', $translations['cs']['canonical_path']);
+        self::assertNull($translations['de']['canonical_path']);
+        self::assertSame('1234567890123.50', $article['starting_price']);
+        self::assertSame('CZK', $article['currency']);
+        self::assertSame('2028-03-04 12:30:00', $article['auction_at']);
+        self::assertSame('active', $article['auction_state']);
+        self::assertSame('https://example.test/domain', $article['external_url']);
+        self::assertSame('Ostrava', $translations['cs']['location']);
+        foreach ($reader->metadata($first) ?? [] as $column => $value) {
+            self::assertSame($value, $article[$column]);
+        }
+        foreach (['thumbnail', 'gallery', 'attachment'] as $position => $usage) {
+            $db->table('system_file')->insert([
+                'id' => $position + 1, 'module_code' => 'cms.auction', 'entity_id' => $first, 'usage' => $usage,
+                'kind' => $usage === 'attachment' ? 'file' : 'image', 'original_filename' => $usage . '.jpg',
+                'extension' => 'jpg', 'mime_type' => 'image/jpeg', 'file_size' => 100,
+                'source_version' => $usage === 'attachment' ? null : 'v1',
+            ]);
+        }
+        /** @var AuctionModulePageProvider $pages */
+        $pages = $scope->get(AuctionModulePageProvider::class);
+        $page = $pages->editor($loaded, [], [], 'cs', ['locale' => 'cs']);
+        self::assertSame('admin::editor', $page->view());
+        /** @var AdminEditorRenderContext $context */
+        $context = $page->data()['adminEditorContext'];
+        self::assertSame('Read fixture Alpha', $context->values()['title']);
+        self::assertSame('read-fixture-canonical', $context->values()['url_segment']);
+        self::assertSame(['Zulu', 'Alpha'], $context->values()['tags']);
+        self::assertSame('Test User', $context->values()['created_by_name']);
+        self::assertSame('Domain Author', $context->values()['author_name']);
+        $germanPage = $pages->editor($loaded, [], [], 'cs', ['locale' => 'de']);
+        /** @var AdminEditorRenderContext $germanContext */
+        $germanContext = $germanPage->data()['adminEditorContext'];
+        self::assertSame('Read fixture German', $germanContext->values()['title']);
+        self::assertSame('', $germanContext->values()['url_segment']);
+        /** @var AdminFileUploadComponent $uploads */
+        $uploads = $scope->get(AdminFileUploadComponent::class);
+        foreach (['thumbnail', 'gallery', 'attachment'] as $usage) {
+            self::assertSame($usage . '.jpg', $uploads->collectionState('cms.auction', $first, $usage)[0]['original_filename']);
+        }
+        $locales = $loaded->data()['locales'];
+        self::assertSame(['cs', 'en', 'de', 'fr'], array_column($locales, 'code'));
+        self::assertSame([1, 1, 0, 1], array_map('intval', array_column($locales, 'enabled')));
+        self::assertSame([1, 1, 1, 0], array_map('intval', array_column($locales, 'has_translation')));
+        self::assertSame(['cs', 'en', 'de', 'fr'], array_column($reader->dataGridLocales(), 'code'));
+        self::assertSame(['cs', 'en', 'fr'], array_column($reader->enabledLocales(), 'code'));
+        $tagNames = $reader->tagNamesForLocale('cs');
+        self::assertSame(['Alpha', 'Zulu'], array_values(array_intersect($tagNames, ['Zulu', 'Alpha'])));
+        self::assertContains('English tag', $reader->tagNamesForLocale('en'));
+
+        $read = static fn(string $search = 'Read fixture', array $filters = [], string $sort = 'title', string $direction = 'asc', int $page = 1, int $size = 25, ?int $owner = null) => $grid->listForDataGrid(
+            new DataGridQuery($page, $size, $sort, $direction, $search, $filters),
+            'cs',
+            $owner,
+            AuctionDataGrid::queryDefinition(),
+        );
+        $ids = static fn($page): array => array_map('intval', array_column($page->items(), 'id'));
+        self::assertSame([$first, $second], $ids($read()));
+        self::assertSame([$first], $ids($read(owner: 7)));
+        self::assertSame([$second], $ids($read(owner: 9)));
+        self::assertSame([], $ids($read(owner: 11)));
+        self::assertSame([$first], $ids($read('read-fixture-canonical')));
+        self::assertSame([], $ids($read('no matching record')));
+        self::assertSame([$first], $ids($read(filters: ['state' => 'published'])));
+        self::assertSame([$second], $ids($read(filters: ['state' => 'draft'])));
+        self::assertSame([], $ids($read(filters: ['state' => 'new'])));
+        self::assertSame([$first], $ids($read(filters: ['locale' => 'de'])));
+        self::assertSame([], $ids($read(filters: ['locale' => 'fr'])));
+        self::assertSame([$second, $first], $ids($read(direction: 'desc')));
+        self::assertSame([$second, $first], $ids($read(sort: 'updatedAt')));
+        self::assertSame([$first, $second], $ids($read(sort: 'untrusted SQL expression', direction: 'desc')));
+        self::assertSame([$second], $ids($read(page: 2, size: 1)));
+        self::assertSame(2, $read(page: 2, size: 1)->total());
+        self::assertSame([], $ids($read(page: 3, size: 1)));
+        $deletedPage = $read(filters: ['status' => 'deleted'], owner: 7);
+        self::assertSame([$deleted], $ids($deletedPage));
+        self::assertSame('Deleted Actor', $deletedPage->items()[0]['deleted_by_name']);
+        self::assertSame('read-fixture-charlie', $deletedPage->items()[0]['canonical_path']);
+        self::assertSame([], $ids($read(filters: ['status' => 'deleted'], owner: 9)));
+        $firstRow = $read()->items()[0];
+        foreach (['owner_id', 'created_by', 'updated_by', 'created_by_name', 'updated_by_name', 'owner_name', 'created_at', 'updated_at', 'author_name'] as $field) {
+            self::assertSame($article[$field], $firstRow[$field]);
+        }
+        $db->table('cms_auction')->where('id', $second)->set(['owner_id' => 11, 'updated_by' => null])->update();
+        $fallback = $read()->items()[1];
+        self::assertSame('email@example.test', $fallback['owner_name']);
+        self::assertSame('—', $fallback['updated_by_name']);
+        $db->table('cms_auction')->where('id', $second)->set(['owner_id' => 9])->update();
+
+        $response = $this->gridResponse($gridController, ['q' => 'Read fixture', 'sort' => 'title', 'direction' => 'asc', 'pageSize' => 1, 'page' => 2]);
+        self::assertSame([$second], array_map('intval', array_column($response['items'], 'id')));
+        self::assertSame(['enabled' => true, 'page' => 2, 'perPage' => 1, 'total' => 2, 'pages' => 2], $response['pagination']);
+        self::assertContains('owner', array_column($response['columns'], 'key'));
+        $inactive = $this->gridResponse($gridController, ['locale' => 'de']);
+        self::assertSame([$first], array_map('intval', array_column($inactive['items'], 'id')));
+        $trash = $this->gridResponse($gridController, ['q' => 'Read fixture', 'status' => 'deleted']);
+        self::assertSame([$deleted], array_map('intval', array_column($trash['items'], 'id')));
+        self::assertSame('Deleted Actor', $trash['items'][0]['cells']['deletedAt'][0]['secondary']);
+        self::assertSame([$first, $second], $ids($read('Ostrava')));
+        self::assertSame([$first, $second], $ids($read(filters: ['auctionState' => 'active'])));
+        self::assertSame([], $ids($read(filters: ['auctionState' => 'cancelled'])));
+        $db->table('cms_auction')->where('id', $second)->set(['starting_price' => '2.00'])->update();
+        self::assertSame([$second, $first], $ids($read(sort: 'startingPrice')));
+        $domainResponse = $this->gridResponse($gridController, ['q' => 'Read fixture', 'auctionState' => 'active', 'sort' => 'startingPrice']);
+        self::assertSame([$second, $first], array_map('intval', array_column($domainResponse['items'], 'id')));
+
+        $db->statement('UPDATE system_role SET is_super_admin = 0 WHERE id = 1');
+        $db->statement('DELETE FROM system_role_permission');
+        $db->statement("INSERT INTO system_permission VALUES (100,'cms.auction.view_own','view','cms.auction'), (101,'cms.auction.edit_own','edit','cms.auction')");
+        $db->statement('INSERT INTO system_role_permission VALUES (1,100), (1,101)');
+        $authorization->invalidate();
+        $own = $this->gridResponse($gridController, ['q' => 'Read fixture']);
+        self::assertSame([$first], array_map('intval', array_column($own['items'], 'id')));
+        self::assertSame(1, $own['pagination']['total']);
+        self::assertSame($first, (int) $editor->updateData('cms.auction', $first)->data()['article']['id']);
+        try {
+            $editor->updateData('cms.auction', $second);
+            self::fail('Own editor permission must reject a foreign record.');
+        } catch (\Lemonade\Admin\Editor\Exception\EditorCapabilityException $exception) {
+            self::assertSame(403, $exception->status());
+        }
+        $ownTrash = $this->gridResponse($gridController, ['q' => 'Read fixture', 'status' => 'deleted']);
+        self::assertSame([$deleted], array_map('intval', array_column($ownTrash['items'], 'id')));
+        $db->statement('DELETE FROM system_role_permission');
+        $authorization->invalidate();
+        self::assertSame(403, $gridController->index('auction', new ServerRequest('GET', '/'))->getStatusCode());
+        $db->statement('UPDATE system_role SET is_super_admin = 1 WHERE id = 1');
+        $authorization->invalidate();
+        $lifecycle->restore(7, $deleted);
+        self::assertNotNull($reader->findForEditor($deleted));
+        self::assertSame(1, (int) ($reader->publication($deleted, 'cs')['publication_state'] ?? -1));
+        self::assertSame([], $ids($read(filters: ['status' => 'deleted'])));
+    }
+
+    /**
+     * Nacte skutecny JSON transport registrovaneho DataGridu
+     *
+     * @param array<string,mixed> $query
+     * @return array<string,mixed>
+     */
+    private function gridResponse(DataGridController $controller, array $query): array
+    {
+        $response = $controller->index('auction', (new ServerRequest('GET', '/'))->withQueryParams($query));
+        self::assertSame(200, $response->getStatusCode(), (string) $response->getBody());
+        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($data);
+
+        return $data;
     }
 }

@@ -7,10 +7,12 @@ namespace Lemonade\Cms\Auction\Tests\Unit\Actions;
 use Lemonade\Admin\Auth\AuthenticatedUser;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Authorization\CurrentPrincipalProviderInterface;
+use Lemonade\Admin\Cms\Content\Action\CmsContentAction;
+use Lemonade\Admin\Cms\Content\Action\CmsContentActionType;
 use Lemonade\Admin\Identity\LocalActorGuard;
-use Lemonade\Cms\Auction\Actions\AuctionAssignOwnerAction;
-use Lemonade\Cms\Auction\Models\AuctionModel;
+use Lemonade\Cms\Content\CmsContentDefinition;
 use Lemonade\Cms\Content\CmsContentLifecycle;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Database\Connection\ConnectionInterface;
 use Lemonade\Framework\Database\Database;
 use Lemonade\Framework\Database\DatabaseDriverInterface;
@@ -47,7 +49,7 @@ final class AuctionAssignOwnerActionTest extends TestCase
      *
      * @param list<string> $permissions
      */
-    private function action(?int $ownerId, array $permissions): AuctionAssignOwnerAction
+    private function action(?int $ownerId, array $permissions): CmsContentAction
     {
         $result = $this->createMock(DatabaseResultInterface::class);
         $result->method('row_array')->willReturn(['owner_id' => $ownerId]);
@@ -71,11 +73,14 @@ final class AuctionAssignOwnerActionTest extends TestCase
         $principal = $this->createMock(CurrentPrincipalProviderInterface::class);
         $principal->method('currentUser')->willReturn(new AuthenticatedUser(42, 'owner@example.test'));
 
-        return new AuctionAssignOwnerAction(
+        return new CmsContentAction(
             $this->instanceWithoutConstructor(CmsContentLifecycle::class),
-            new AuctionModel($driver),
+            new CmsContentReadModel(new Database($connection, $driver), new CmsContentDefinition('cms.auction', 'item', 'item', 'translation', 'item_id', 'tag', 'unique_key', 'auction', \stdClass::class)),
             $this->instanceWithoutConstructor(LocalActorGuard::class),
             new AuthorizationService($principal, new Database($connection, $driver)),
+            CmsContentActionType::AssignOwner,
+            'cms.auction',
+            'auction',
         );
     }
 

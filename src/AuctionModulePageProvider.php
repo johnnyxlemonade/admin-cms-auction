@@ -22,7 +22,7 @@ use Lemonade\Admin\Page\ModulePage;
 use Lemonade\Admin\Presentation\AdminFileUploadComponent;
 use Lemonade\Cms\Auction\DataGrid\AuctionDataGrid;
 use Lemonade\Cms\Auction\Editor\AuctionAdminEditorDefinitionFactory;
-use Lemonade\Cms\Auction\Models\AuctionModel;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
@@ -42,7 +42,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
         private AdminModuleRouteResolver $routes,
         private AuctionAdminEditorDefinitionFactory $adminEditorDefinitions,
         private AdminFileUploadComponent $files,
-        private AuctionModel $auction,
+        private CmsContentReadModel $auction,
         private LocalUserDirectory $users,
     ) {}
 

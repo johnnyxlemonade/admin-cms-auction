@@ -9,6 +9,7 @@ use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Auth\AuthenticatedUser;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Authorization\CurrentPrincipalProviderInterface;
+use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
 use Lemonade\Admin\DataGrid\DataGridRowDefinition;
 use Lemonade\Admin\DataGrid\Query\DataGridQuery;
 use Lemonade\Admin\File\FileReadModel;
@@ -20,9 +21,9 @@ use Lemonade\Admin\Presentation\AdminThumbnailComponent;
 use Lemonade\Admin\Presentation\Models\AdminFileModel;
 use Lemonade\Cms\Auction\CmsAuctionServiceProvider;
 use Lemonade\Cms\Auction\DataGrid\AuctionDataGrid;
-use Lemonade\Cms\Auction\Models\AuctionModel;
 use Lemonade\Cms\Auction\ModuleManifest;
 use Lemonade\Cms\CmsPublicationState;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Cache\CacheManager;
 use Lemonade\Framework\Cache\Store\ArrayCacheItemPool;
 use Lemonade\Framework\Database\Connection\ConnectionInterface;
@@ -119,7 +120,7 @@ final class AuctionDataGridTest extends TestCase
             },
         );
         $query = new DataGridQuery(1, 25, 'startingPrice', 'asc', 'Praha', ['auctionState' => 'active']);
-        (new AuctionModel($driver))->listForDataGrid($query, 'cs');
+        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()))->listForDataGrid($query, 'cs', definition: AuctionDataGrid::queryDefinition());
 
         self::assertCount(2, $queries);
         foreach ($queries as $sql) {
@@ -214,7 +215,7 @@ final class AuctionDataGridTest extends TestCase
             },
         );
 
-        (new AuctionModel($driver))->listForDataGrid($this->query('cs'), 'cs', 42);
+        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()))->listForDataGrid($this->query('cs'), 'cs', 42, AuctionDataGrid::queryDefinition());
 
         self::assertCount(2, $queries);
         self::assertStringContainsString('a.owner_id = ?', $queries[0]);
@@ -324,7 +325,7 @@ final class AuctionDataGridTest extends TestCase
         );
 
         return new AuctionDataGrid(
-            new AuctionModel($driver),
+            new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()),
             $authorization,
             $translator,
             $actionPresentation,
@@ -333,6 +334,7 @@ final class AuctionDataGridTest extends TestCase
             new AdminFileModel($driver, new FileReadModel($driver)),
             new AdminThumbnailComponent(new ImageUrlGenerator($urls, $variants)),
             $languages,
+            new CmsContentDataGrid($database, CmsAuctionServiceProvider::contentDefinition()),
         );
     }
 

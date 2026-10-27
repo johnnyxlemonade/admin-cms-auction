@@ -6,6 +6,10 @@ namespace Lemonade\Cms\Auction\DataGrid;
 
 use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Authorization\AuthorizationService;
+use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
+use Lemonade\Admin\Cms\Content\CmsDataGridColumn;
+use Lemonade\Admin\Cms\Content\CmsDataGridDefinition;
+use Lemonade\Admin\Cms\Content\CmsDataGridFilter;
 use Lemonade\Admin\DataGrid\Action\DataGridRowActionDefinition;
 use Lemonade\Admin\DataGrid\Cell\ScalarCell;
 use Lemonade\Admin\DataGrid\Cell\StackedCell;
@@ -26,8 +30,8 @@ use Lemonade\Admin\Presentation\AdminThumbnailComponent;
 use Lemonade\Admin\Presentation\Models\AdminFileModel;
 use Lemonade\Admin\Select\SelectOptionDefinition;
 use Lemonade\Admin\Select\StaticSelectOptionSource;
-use Lemonade\Cms\Auction\Models\AuctionModel;
 use Lemonade\Cms\CmsPublicationState;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
@@ -40,7 +44,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
      * Nastavuje Auction persistence projekci pro DataGrid
      */
     public function __construct(
-        private AuctionModel $auction,
+        private CmsContentReadModel $auction,
         private AuthorizationService $authorization,
         private TranslatorInterface $translator,
         private ModuleActionPresentationFactory $actionPresentation,
@@ -49,7 +53,26 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
         private AdminFileModel $files,
         private AdminThumbnailComponent $thumbnails,
         private LanguageRegistry $languages,
+        private CmsContentDataGrid $contentGrid,
     ) {}
+
+    /**
+     * Deklaruje pouze domenove rozsireni standardniho CMS dotazu
+     */
+    public static function queryDefinition(): CmsDataGridDefinition
+    {
+        return new CmsDataGridDefinition(
+            columns: [
+                new CmsDataGridColumn('location', searchable: true),
+                new CmsDataGridColumn('startingPrice'),
+                new CmsDataGridColumn('currency', sortable: false),
+                new CmsDataGridColumn('auctionAt'),
+                new CmsDataGridColumn('auctionState'),
+                new CmsDataGridColumn('createdAt'),
+            ],
+            filters: [new CmsDataGridFilter('auctionState', ['preparing', 'active', 'ended', 'cancelled'])],
+        );
+    }
 
     /**
      * Vrati pravo potrebne pro nacteni Auction prehledu
@@ -124,10 +147,11 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
         if (!$canViewAll && $ownerId === null) {
             return new DataGridResult([], $query->page(), $query->pageSize(), 0);
         }
-        $page = $this->auction->listForDataGrid(
+        $page = $this->contentGrid->listForDataGrid(
             $query,
             $this->languages->defaultLocale(),
             $ownerId,
+            self::queryDefinition(),
         );
         $featuredImages = $this->files->findForEntities(
             'cms.auction',
