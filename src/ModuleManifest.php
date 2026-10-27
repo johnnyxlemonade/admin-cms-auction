@@ -69,7 +69,7 @@ final readonly class ModuleManifest implements
     {
         return new AdminModuleMetadata(
             nameKey: 'auction.module.name',
-            icon: AdminIcon::JournalText,
+            icon: AdminIcon::Hammer,
             navigationGroup: AdminNavigationGroup::Content,
             navigationOrder: 10,
             routeSegment: 'auction',
