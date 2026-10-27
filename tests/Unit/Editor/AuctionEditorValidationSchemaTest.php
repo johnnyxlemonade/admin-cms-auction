@@ -46,6 +46,13 @@ final class AuctionEditorValidationSchemaTest extends TestCase
             'summary',
             'content',
             'tags',
+            'recommended',
+            'show_author',
+            'sharing_enabled',
+            'show_published_at',
+            'show_thumbnail',
+            'show_reading_time',
+            'show_tags',
         ], array_keys($fields));
         self::assertSame('in_list', $fields['publication_state']->rules()[0]->name());
     }

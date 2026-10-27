@@ -213,6 +213,12 @@ final class AuctionAdminTransportTest extends TestCase
         $id = $created->data()['id'];
         $domain = ['starting_price' => '1234567890123.50', 'auction_at' => '2028-02-29T14:30', 'auction_state' => 'active', 'external_url' => 'https://example.test/auction'];
         $payload = $domain + ['locale' => 'cs', 'title' => 'První zpráva', 'location' => 'Praha', 'page_title' => 'SEO title', 'meta_description' => 'SEO description', 'tags' => 'Praha, Brno, Praha', 'publication_state' => '2', 'published_at' => '2027-01-22T12:30'];
+        $defaults = $db->table('cms_auction')->where('id', $id)->first() ?? [];
+        foreach (\Lemonade\Cms\Content\CmsContentInput::DISPLAY_DEFAULTS as $column => $default) {
+            self::assertSame($default, (int) ($defaults[$column] ?? -1));
+        }
+        $payload += ['recommended' => '1', 'show_author' => '0', 'sharing_enabled' => '0',
+            'show_published_at' => '0', 'show_thumbnail' => '0', 'show_reading_time' => '0', 'show_tags' => '0'];
         $saved = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload]);
         self::assertTrue($saved->successful());
         $row = $db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'cs')->first() ?? [];
@@ -223,6 +229,10 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertSame('SEO title', $row['page_title']);
         self::assertSame('SEO description', $row['meta_description']);
         $root = $db->table('cms_auction')->where('id', $id)->first() ?? [];
+        self::assertSame(1, (int) ($root['recommended'] ?? -1));
+        foreach (['show_author', 'sharing_enabled', 'show_published_at', 'show_thumbnail', 'show_reading_time', 'show_tags'] as $column) {
+            self::assertSame(0, (int) ($root[$column] ?? -1));
+        }
         self::assertSame('1234567890123.50', $root['starting_price'] ?? null);
         self::assertSame('CZK', $root['currency'] ?? null);
         self::assertSame('2028-02-29 14:30:00', $root['auction_at'] ?? null);
@@ -247,6 +257,7 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertCount(count($beforeUrlNoOp), $db->table('system_audit_log')->getArray());
         $english = $domain + ['locale' => 'en', 'title' => 'English auction', 'location' => 'London'];
         self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $english])->successful());
+        self::assertSame(0, (int) (($db->table('cms_auction')->where('id', $id)->first() ?? [])['show_author'] ?? -1));
         self::assertSame('English auction', ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['title'] ?? null);
         self::assertSame('London', ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['location'] ?? null);
         $payload['publication_state'] = '2';

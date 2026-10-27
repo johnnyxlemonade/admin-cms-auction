@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lemonade\Cms\Auction\Editor;
 
 use Lemonade\Admin\Action\Presentation\AdminActionFormDefinition;
+use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
 use Lemonade\Admin\Editor\AdminEditor\Action\AdminEditorActionDefinition;
 use Lemonade\Admin\Editor\AdminEditor\Action\AdminEditorSaveBarDefinition;
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorBuilder;
@@ -20,6 +21,7 @@ use Lemonade\Admin\Editor\AdminEditor\Layout\FieldGroupBlock;
 use Lemonade\Admin\Editor\AdminEditor\Layout\SectionBlock;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Presentation\AdminFileUploadCollection;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
@@ -306,6 +308,7 @@ final readonly class AuctionAdminEditorDefinitionFactory
             id: 'settings',
             label: '',
             blocks: [
+                ...CmsDisplaySettings::tab()->blocks(),
                 new SectionBlock(
                     id: 'authorship',
                     blocks: [new FieldGroupBlock([
@@ -395,12 +398,8 @@ final readonly class AuctionAdminEditorDefinitionFactory
                     new FieldGroupBlock([
                         new FieldColumn(
                             Field::select('publication_state', labelKey: 'auction.fields.publication_state')
-                                ->options(['0' => '', '1' => '', '2' => ''])
-                                ->optionLabelKeys([
-                                    '0' => 'admin.status.new',
-                                    '1' => 'admin.status.draft',
-                                    '2' => 'admin.status.published',
-                                ]),
+                                ->options(array_fill_keys(array_keys(CmsPublicationState::editorOptionLabelKeys()), ''))
+                                ->optionLabelKeys(CmsPublicationState::editorOptionLabelKeys()),
                             md: 12,
                         ),
                         new FieldColumn(

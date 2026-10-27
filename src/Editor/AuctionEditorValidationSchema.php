@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\Auction\Editor;
 
+use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Validation\ValidationSchema;
 
@@ -30,7 +32,7 @@ final readonly class AuctionEditorValidationSchema
      */
     public function forUpdate(): ValidationSchema
     {
-        return ValidationSchema::create()
+        return CmsDisplaySettings::validation(ValidationSchema::create()
             ->field('locale', $this->translator->get('auction.editor.content'))
                 ->required($this->translator->get('auction.validation.locale_required'))
             ->field('title', $this->translator->get('auction.fields.title'))
@@ -43,7 +45,7 @@ final readonly class AuctionEditorValidationSchema
             ->field('meta_description', $this->translator->get('auction.fields.meta_description'))
                 ->maxLength(255, $this->translator->get('auction.validation.meta_description_max_length'))
             ->field('publication_state', $this->translator->get('auction.fields.publication_state'))
-                ->inList(['0', '1', '2'], $this->translator->get('auction.validation.publication_invalid'))
+                ->inList(array_keys(CmsPublicationState::editorOptionLabelKeys()), $this->translator->get('auction.validation.publication_invalid'))
             ->field('published_at', $this->translator->get('auction.fields.published_at'))
             ->field('location', $this->translator->get('auction.fields.location'))
             ->field('starting_price', $this->translator->get('auction.fields.starting_price'))
@@ -53,6 +55,6 @@ final readonly class AuctionEditorValidationSchema
             ->field('summary', $this->translator->get('auction.fields.summary'))
             ->field('content', $this->translator->get('auction.fields.content'))
             ->field('tags', $this->translator->get('auction.fields.tags'))
-            ->end();
+            ->end(), $this->translator);
     }
 }

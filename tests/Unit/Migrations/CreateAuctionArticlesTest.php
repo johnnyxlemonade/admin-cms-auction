@@ -51,7 +51,7 @@ final class CreateAuctionArticlesTest extends TestCase
         self::assertStringContainsString('`auction_state`', $root);
         self::assertStringContainsString('`location`', $statements['cms_auction_translation']);
         self::assertStringNotContainsString('`location`', $root);
-        self::assertStringNotContainsString('`show_reading_time`', $root);
+        self::assertStringContainsString('`show_reading_time`', $root);
         foreach (['created_by', 'updated_by', 'deleted_by', 'owner_id'] as $column) {
             self::assertStringContainsString(sprintf('`%s` BIGINT UNSIGNED NULL', $column), $root);
         }

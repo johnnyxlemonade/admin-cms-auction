@@ -22,6 +22,7 @@ use Lemonade\Admin\Page\ModulePage;
 use Lemonade\Admin\Presentation\AdminFileUploadComponent;
 use Lemonade\Cms\Auction\DataGrid\AuctionDataGrid;
 use Lemonade\Cms\Auction\Editor\AuctionAdminEditorDefinitionFactory;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
@@ -199,7 +200,8 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
                         'page_title' => (string) ($translation['page_title'] ?? ''),
                         'meta_description' => (string) ($translation['meta_description'] ?? ''),
                         'url_segment' => $canonicalPath === '' ? '' : basename($canonicalPath),
-                        'publication_state' => (string) ($translation['publication_state'] ?? 0),
+                        ...\Lemonade\Admin\Cms\Content\CmsDisplaySettings::values($article),
+                        'publication_state' => CmsPublicationState::from((int) ($translation['publication_state'] ?? CmsPublicationState::New->value))->editorValue(),
                         'published_at' => (string) ($translation['published_at'] ?? ''),
                         'created_by_name' => (string) ($article['created_by_name'] ?? '—'),
                         'created_at' => (string) ($article['created_at'] ?? ''),
