@@ -7,6 +7,7 @@ namespace Lemonade\Cms\Auction\Editor;
 use DomainException;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
+use Lemonade\Admin\Cms\Content\CmsPublicationEditorValues;
 use Lemonade\Admin\Editor\Contract\EditorAccessPolicyInterface;
 use Lemonade\Admin\Editor\Contract\EditorFieldAccessPolicyInterface;
 use Lemonade\Admin\Editor\Contract\EditorProviderInterface;
@@ -182,7 +183,13 @@ final readonly class AuctionEditor implements
         }
 
         return new EditorSaveResult(
-            data: ['id' => $id, 'editUrl' => $this->editUrl($id, (string) $data['locale'])],
+            data: [
+                'id' => $id,
+                'editUrl' => $this->editUrl($id, (string) $data['locale']),
+                'editorFields' => isset($data['publication_state'])
+                    ? CmsPublicationEditorValues::forLocale($this->updateData($id)['article']['translations'], (string) $data['locale'])
+                    : [],
+            ],
             messageKey: 'auction.editor.updated',
         );
     }

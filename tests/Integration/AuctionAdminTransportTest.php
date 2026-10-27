@@ -221,6 +221,7 @@ final class AuctionAdminTransportTest extends TestCase
             'show_published_at' => '0', 'show_thumbnail' => '0', 'show_reading_time' => '0', 'show_tags' => '0'];
         $saved = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload]);
         self::assertTrue($saved->successful());
+        self::assertSame(['publication_state' => '2', 'published_at' => '2027-01-22T12:30'], $saved->data()['editorFields']);
         $row = $db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'cs')->first() ?? [];
         self::assertNotEmpty($row);
         self::assertSame('První zpráva', $row['title']);
@@ -244,7 +245,10 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertCount(count($before), $db->table('system_audit_log')->getArray());
         $payload['publication_state'] = '1';
         $payload['published_at'] = '';
-        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload])->successful());
+        $unpublished = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload]);
+        self::assertTrue($unpublished->successful());
+        self::assertSame(['publication_state' => '1', 'published_at' => ''], $unpublished->data()['editorFields']);
+        self::assertNull(($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'cs')->first() ?? [])['published_at'] ?? null);
         self::assertSame(1, (int) (($db->table('cms_auction_translation')->where('article_id', $id)->first() ?? [])['publication_state'] ?? 0));
         self::assertSame('active', ($db->table('cms_auction')->where('id', $id)->first() ?? [])['auction_state'] ?? null);
         self::assertContains('cms.auction.unpublished', array_column($db->table('system_audit_log')->getArray(), 'event_code'));
@@ -261,7 +265,11 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertSame('English auction', ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['title'] ?? null);
         self::assertSame('London', ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['location'] ?? null);
         $payload['publication_state'] = '2';
-        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload])->successful());
+        $republished = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload]);
+        self::assertTrue($republished->successful());
+        $publishedAt = ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'cs')->first() ?? [])['published_at'] ?? null;
+        self::assertMatchesRegularExpression('/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$/', (string) $publishedAt);
+        self::assertSame(['publication_state' => '2', 'published_at' => str_replace(' ', 'T', substr((string) $publishedAt, 0, 16))], $republished->data()['editorFields']);
 
         $db->statement('UPDATE system_role SET is_super_admin = 0 WHERE id = 1');
         $db->statement("INSERT INTO system_permission VALUES (1,'cms.auction.view_own','view','cms.auction'), (2,'cms.auction.edit_own','edit','cms.auction')");
