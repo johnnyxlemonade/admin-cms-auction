@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\Auction\DataGrid;
 
+use DateTimeImmutable;
 use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
@@ -96,10 +97,10 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
                 new DataGridColumnDefinition('auctionAt', 'auction.fields.auction_at', 'auctionAt'),
                 new DataGridColumnDefinition('auctionState', 'auction.fields.auction_state', 'auctionState'),
                 new DataGridColumnDefinition('state', 'auction.fields.publication_state', 'state'),
-                new DataGridColumnDefinition('publishedAt', 'auction.fields.published_at', 'publishedAt', 'd-none d-lg-table-cell', configurable: true),
-                new DataGridColumnDefinition('owner', 'auction.fields.owner', class: 'd-none d-xl-table-cell', configurable: true),
-                new DataGridColumnDefinition('createdAt', 'auction.fields.created_at', 'createdAt', configurable: true),
-                new DataGridColumnDefinition('updatedAt', 'auction.fields.updated_at', 'updatedAt', 'd-none d-xl-table-cell', configurable: true),
+                new DataGridColumnDefinition('publishedAt', 'auction.fields.published_at', 'publishedAt', 'd-none d-lg-table-cell', configurable: true, visibleByDefault: false),
+                new DataGridColumnDefinition('owner', 'auction.fields.owner', class: 'd-none d-xl-table-cell', configurable: true, visibleByDefault: false),
+                new DataGridColumnDefinition('createdAt', 'auction.fields.created_at', 'createdAt', configurable: true, visibleByDefault: false),
+                new DataGridColumnDefinition('updatedAt', 'auction.fields.updated_at', 'updatedAt', 'd-none d-xl-table-cell', configurable: true, visibleByDefault: false),
                 new DataGridColumnDefinition('deletedAt', 'auction.fields.deleted_at', configurable: true, visibleByDefault: false),
                 new DataGridColumnDefinition('actions', 'admin.common.actions'),
             ],
@@ -229,14 +230,17 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
                     url: $editable ? $this->editUrl($articleId, $locale) : null,
                 ),
                 'location' => new ScalarCell((string) ($article['location'] ?? '—')),
-                'startingPrice' => new ScalarCell($article['starting_price'] === null ? '—' : (string) $article['starting_price'] . ' CZK'),
-                'auctionAt' => new ScalarCell((string) ($article['auction_at'] ?? '—')),
-                'auctionState' => new ScalarCell($this->translator->get('auction.states.' . $article['auction_state'])),
+                'startingPrice' => new ScalarCell($article['starting_price'] === null ? '—' : (string) $article['starting_price']),
+                'auctionAt' => new ScalarCell($this->formatDateTime($article['auction_at'] ?? null)),
+                'auctionState' => new StatusCell(
+                    $this->translator->get('auction.states.' . $article['auction_state']),
+                    $article['auction_state'] === 'active' ? StatusVariant::Success : StatusVariant::Muted,
+                ),
                 'state' => new StatusCell(
                     $this->publicationStateLabel((int) $article['publication_state']),
                     (int) $article['publication_state'] === CmsPublicationState::Published->value ? StatusVariant::Success : StatusVariant::Muted,
                 ),
-                'publishedAt' => new ScalarCell((string) ($article['published_at'] ?? '—')),
+                'publishedAt' => new ScalarCell($this->formatDateTime($article['published_at'] ?? null)),
                 'owner' => new ScalarCell((string) ($article['owner_name'] ?? '—')),
                 'createdAt' => $this->auditMetadataCell($article['created_at'] ?? null, $article['created_by_name'] ?? null),
                 'updatedAt' => $this->auditMetadataCell($article['updated_at'] ?? null, $article['updated_by_name'] ?? null),
@@ -306,9 +310,30 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
         $actor = trim((string) $actor);
 
         return new StackedCell(
-            value: $date === '' ? '—' : $date,
+            value: $this->formatDateTime($date),
             secondary: $date === '' || $actor === '' ? '—' : $actor,
         );
+    }
+
+    /**
+     * Zobrazi datum bez sekund podle jazyka administrace
+     */
+    private function formatDateTime(mixed $value): string
+    {
+        $text = trim((string) $value);
+        if ($text === '') {
+            return '—';
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $text);
+        if ($date === false) {
+            return $text;
+        }
+
+        return $date->format(match ($this->translator->locale()) {
+            'en' => 'M j, Y H:i',
+            default => 'd. m. Y H:i',
+        });
     }
 
     /**

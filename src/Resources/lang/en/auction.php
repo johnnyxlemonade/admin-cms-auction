@@ -30,15 +30,21 @@ return [
 
     'fields' => [
         'location' => 'Location',
-        'starting_price' => 'Starting price (CZK)',
+        'location_help' => 'Where the auctioned property is located.',
+        'starting_price' => 'Starting price',
+        'starting_price_help' => 'A price or text shown with the auction.',
         'auction_at' => 'Auction date',
+        'auction_at_help' => 'Date and time of the auction.',
         'auction_state' => 'Auction status',
+        'auction_state_help' => 'Current status of the offer. It does not affect publication.',
         'external_url' => 'External URL',
+        'external_url_help' => 'A link to more information or an external auction portal.',
         'title' => 'Auction title',
         'author_name' => 'Author',
         'tags' => 'Tags',
-        'tags_help' => 'Select an existing tag or enter a new one.',
+        'tags_help' => 'Used to label and filter auctions. Select an existing tag or enter a new one.',
         'summary' => 'Summary',
+        'summary_help' => 'A short summary used in the public presentation.',
         'content' => 'Content',
         'thumbnail' => 'Thumbnail',
         'publication_state' => 'Publication status',
@@ -107,7 +113,7 @@ return [
     ],
 
     'validation' => [
-        'price_invalid' => 'Enter a valid price with at most two decimal places',
+        'price_invalid' => 'Enter a non-negative price or its description (up to 150 characters)',
         'state_invalid' => 'Select a valid auction status',
         'url_invalid' => 'Enter a valid HTTP or HTTPS URL',
         'date_invalid' => 'Enter a valid auction date',

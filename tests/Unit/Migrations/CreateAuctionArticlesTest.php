@@ -46,7 +46,7 @@ final class CreateAuctionArticlesTest extends TestCase
             array_keys($statements),
         );
         $root = $statements['cms_auction'];
-        self::assertStringContainsString('`starting_price` DECIMAL(15,2) NULL', $root);
+        self::assertStringContainsString('`starting_price` TEXT NULL', $root);
         self::assertStringContainsString('`auction_at` DATETIME NULL', $root);
         self::assertStringContainsString('`auction_state`', $root);
         self::assertStringContainsString('`location`', $statements['cms_auction_translation']);

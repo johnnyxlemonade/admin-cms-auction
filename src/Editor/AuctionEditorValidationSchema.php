@@ -49,6 +49,7 @@ final readonly class AuctionEditorValidationSchema
             ->field('published_at', $this->translator->get('auction.fields.published_at'))
             ->field('location', $this->translator->get('auction.fields.location'))
             ->field('starting_price', $this->translator->get('auction.fields.starting_price'))
+                ->maxLength(150, $this->translator->get('auction.validation.price_invalid'))
             ->field('auction_at', $this->translator->get('auction.fields.auction_at'))
             ->field('auction_state', $this->translator->get('auction.fields.auction_state'))
             ->field('external_url', $this->translator->get('auction.fields.external_url'))

@@ -30,15 +30,21 @@ return [
 
     'fields' => [
         'location' => 'Lokalita',
-        'starting_price' => 'Vyvolávací cena (CZK)',
+        'location_help' => 'Místo, kde se dražený majetek nachází.',
+        'starting_price' => 'Vyvolávací cena',
+        'starting_price_help' => 'Cena nebo textová informace zobrazovaná u dražby.',
         'auction_at' => 'Termín dražby',
+        'auction_at_help' => 'Datum a čas konání dražby.',
         'auction_state' => 'Stav dražby',
+        'auction_state_help' => 'Aktuální stav nabídky. Neovlivňuje její zveřejnění.',
         'external_url' => 'Externí odkaz',
+        'external_url_help' => 'Odkaz na další informace nebo externí dražební portál.',
         'title' => 'Název dražby',
         'author_name' => 'Autor',
         'tags' => 'Štítky',
-        'tags_help' => 'Vyberte existující štítek nebo zadejte nový.',
+        'tags_help' => 'Slouží k označení a filtrování dražeb. Vyberte existující štítek nebo zadejte nový.',
         'summary' => 'Úvodní text',
+        'summary_help' => 'Krátké shrnutí používané ve veřejné prezentaci.',
         'content' => 'Obsah',
         'thumbnail' => 'Hlavní obrázek',
         'publication_state' => 'Stav publikace',
@@ -107,7 +113,7 @@ return [
     ],
 
     'validation' => [
-        'price_invalid' => 'Zadejte platnou cenu s nejvýše dvěma desetinnými místy',
+        'price_invalid' => 'Zadejte nezápornou cenu nebo její slovní popis (nejvýše 150 znaků)',
         'state_invalid' => 'Vyberte platný stav dražby',
         'url_invalid' => 'Zadejte platný odkaz HTTP nebo HTTPS',
         'date_invalid' => 'Zadejte platný termín dražby',

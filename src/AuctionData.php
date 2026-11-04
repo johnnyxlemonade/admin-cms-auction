@@ -20,7 +20,7 @@ final readonly class AuctionData
     public function __construct(
         #[CmsRoot('author_name')]
         public ?string $authorName,
-        #[CmsRoot('starting_price', decimalScale: 2)]
+        #[CmsRoot('starting_price')]
         public ?string $startingPrice,
         #[CmsRoot('currency')]
         public string $currency,
@@ -46,12 +46,9 @@ final readonly class AuctionData
             throw new DomainException('auction.validation.author_max_length');
         }
         $price = self::nullableText($data['starting_price'] ?? null);
-        if ($price !== null) {
-            if (preg_match('/^(?:0|[1-9][0-9]{0,12})(?:\.[0-9]{1,2})?$/D', $price) !== 1) {
-                throw new DomainException('auction.validation.price_invalid');
-            }
-            [$whole, $fraction] = array_pad(explode('.', $price, 2), 2, '');
-            $price = $whole . '.' . str_pad($fraction, 2, '0');
+        if ($price !== null && (mb_strlen($price) > 150
+            || preg_match('/^[−-]\s*[0-9]|[\x00-\x1F\x7F]/u', $price) === 1)) {
+            throw new DomainException('auction.validation.price_invalid');
         }
         $state = (string) ($data['auction_state'] ?? 'preparing');
         if (!in_array($state, ['preparing', 'active', 'ended', 'cancelled'], true)) {

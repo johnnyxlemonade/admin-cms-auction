@@ -14,10 +14,10 @@ use PHPUnit\Framework\TestCase;
  */
 final class AuctionDataTest extends TestCase
 {
-    public function testMapsDecimalAndLocalizedLocation(): void
+    public function testMapsTextPriceAndLocalizedLocation(): void
     {
         $data = AuctionData::fromEditor([
-            'starting_price' => '1234567890123.5',
+            'starting_price' => '400 000 Kč',
             'auction_at' => '2028-02-29T14:30',
             'auction_state' => 'active',
             'external_url' => 'https://example.com/auction',
@@ -26,7 +26,7 @@ final class AuctionDataTest extends TestCase
         self::assertSame([
             'root' => [
                 'author_name' => null,
-                'starting_price' => '1234567890123.50',
+                'starting_price' => '400 000 Kč',
                 'currency' => 'CZK',
                 'auction_at' => '2028-02-29 14:30:00',
                 'auction_state' => 'active',
@@ -52,7 +52,7 @@ final class AuctionDataTest extends TestCase
      */
     public static function invalidValues(): iterable
     {
-        yield 'price' => [['starting_price' => '1.001'], 'auction.validation.price_invalid'];
+        yield 'price' => [['starting_price' => '-1 Kč'], 'auction.validation.price_invalid'];
         yield 'date' => [['auction_at' => '2026-02-30T12:00'], 'auction.validation.date_invalid'];
         yield 'state' => [['auction_state' => 'published'], 'auction.validation.state_invalid'];
         yield 'url' => [['external_url' => 'javascript:alert(1)'], 'auction.validation.url_invalid'];

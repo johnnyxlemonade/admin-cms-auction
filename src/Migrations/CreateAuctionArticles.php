@@ -29,7 +29,7 @@ final readonly class CreateAuctionArticles implements MigrationInterface
     {
         $schema->create('cms_auction', static function (TableBlueprint $table): void {
             CmsContentSchema::root($table, 'cms_auction');
-            $table->decimal('starting_price', 15, 2)->nullable();
+            $table->text('starting_price')->nullable();
             $table->string('currency', 3)->default('CZK');
             $table->datetime('auction_at')->nullable();
             $table->string('auction_state', 20)->default('preparing');

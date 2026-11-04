@@ -175,7 +175,7 @@ final class AuctionAdminEditorDefinitionFactoryTest extends TestCase
         self::assertSame('admin.common.discard', $saveBar->secondaryAction()?->labelKey());
         self::assertSame('save', $editor->form()->actionKey());
         self::assertSame(['content-basic', 'content-body'], array_map(static fn($section): string => $section instanceof SectionBlock ? $section->id() : '', $editor->tabs()[0]->blocks()));
-        self::assertSame(['recommendation-settings', 'display-settings', 'authorship'], array_map(static fn($section): string => $section instanceof SectionBlock ? $section->id() : '', $editor->tabs()[2]->blocks()));
+        self::assertSame(['recommendation-settings', 'display-settings'], array_map(static fn($section): string => $section instanceof SectionBlock ? $section->id() : '', $editor->tabs()[2]->blocks()));
 
         /** @param list<AdminEditorBlock> $sections
          *  @return list<string>
@@ -196,8 +196,8 @@ final class AuctionAdminEditorDefinitionFactoryTest extends TestCase
             }
             return $names;
         };
-        self::assertSame(['locale', 'title', 'location', 'starting_price', 'auction_at', 'auction_state', 'external_url', 'tags', 'summary', 'content'], $fieldNames($editor->tabs()[0]->blocks()));
-        self::assertSame(['recommended', 'show_author', 'sharing_enabled', 'show_published_at', 'show_thumbnail', 'show_reading_time', 'show_tags', 'author_name'], $fieldNames($editor->tabs()[2]->blocks()));
+        self::assertSame(['locale', 'title', 'author_name', 'location', 'external_url', 'starting_price', 'auction_at', 'auction_state', 'tags', 'summary', 'content'], $fieldNames($editor->tabs()[0]->blocks()));
+        self::assertSame(['recommended', 'show_author', 'sharing_enabled', 'show_published_at', 'show_thumbnail', 'show_reading_time', 'show_tags'], $fieldNames($editor->tabs()[2]->blocks()));
         self::assertSame(['page_title', 'meta_description', 'url_segment'], $fieldNames($editor->tabs()[1]->blocks()));
         $contentSection = $editor->tabs()[0]->blocks()[0];
         self::assertInstanceOf(SectionBlock::class, $contentSection);
@@ -208,7 +208,7 @@ final class AuctionAdminEditorDefinitionFactoryTest extends TestCase
         self::assertInstanceOf(SectionBlock::class, $contentBasic);
         $tagGroup = $contentBasic->blocks()[1];
         self::assertInstanceOf(FieldGroupBlock::class, $tagGroup);
-        $tagField = $tagGroup->columns()[6]->field();
+        $tagField = $tagGroup->columns()[7]->field();
         self::assertInstanceOf(SelectField::class, $tagField);
         self::assertTrue($tagField->isMultiple());
         self::assertSame(['Existing' => 'Existing', 'New' => 'New'], $tagField->selectOptions());

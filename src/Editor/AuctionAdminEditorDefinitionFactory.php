@@ -127,16 +127,34 @@ final readonly class AuctionAdminEditorDefinitionFactory
                                 md: 12,
                             ),
                             new FieldColumn(
-                                Field::text('location', labelKey: 'auction.fields.location')->attributes(['maxlength' => '255']),
+                                Field::text('author_name', labelKey: 'auction.fields.author_name')
+                                    ->attributes(['maxlength' => '255']),
                                 md: 12,
                             ),
                             new FieldColumn(
-                                Field::number('starting_price', labelKey: 'auction.fields.starting_price')->attributes(['min' => '0', 'step' => '0.01']),
+                                Field::text('location', labelKey: 'auction.fields.location')
+                                    ->help('', 'auction.fields.location_help')
+                                    ->attributes(['maxlength' => '255']),
                                 md: 6,
                             ),
                             new FieldColumn(
-                                Field::datetimeLocal('auction_at', labelKey: 'auction.fields.auction_at'),
+                                Field::text('external_url', labelKey: 'auction.fields.external_url')
+                                    ->help('', 'auction.fields.external_url_help')
+                                    ->attributes(['maxlength' => '2048']),
                                 md: 6,
+                            ),
+                            new FieldColumn(
+                                Field::text('starting_price', labelKey: 'auction.fields.starting_price')
+                                    ->help('', 'auction.fields.starting_price_help')
+                                    ->attributes(['maxlength' => '150']),
+                                md: 6,
+                                lg: 4,
+                            ),
+                            new FieldColumn(
+                                Field::datetimeLocal('auction_at', labelKey: 'auction.fields.auction_at')
+                                    ->help('', 'auction.fields.auction_at_help'),
+                                md: 6,
+                                lg: 4,
                             ),
                             new FieldColumn(
                                 Field::select('auction_state', labelKey: 'auction.fields.auction_state')
@@ -147,16 +165,15 @@ final readonly class AuctionAdminEditorDefinitionFactory
                                         'cancelled' => 'auction.states.cancelled',
                                     ])
                                     ->options(['preparing' => '', 'active' => '', 'ended' => '', 'cancelled' => ''])
-                                    ->defaultValue('preparing'),
+                                    ->defaultValue('preparing')
+                                    ->help('', 'auction.fields.auction_state_help'),
                                 md: 6,
-                            ),
-                            new FieldColumn(
-                                Field::text('external_url', labelKey: 'auction.fields.external_url')->attributes(['maxlength' => '2048']),
-                                md: 12,
+                                lg: 4,
                             ),
                             CmsTagsField::column('auction', $tagOptions, $translation['tags'] ?? []),
                             new FieldColumn(
-                                Field::textarea('summary', labelKey: 'auction.fields.summary'),
+                                Field::textarea('summary', labelKey: 'auction.fields.summary')
+                                    ->help('', 'auction.fields.summary_help'),
                                 md: 12,
                             ),
                         ]),
@@ -197,17 +214,6 @@ final readonly class AuctionAdminEditorDefinitionFactory
             label: '',
             blocks: [
                 ...CmsDisplaySettings::tab()->blocks(),
-                new SectionBlock(
-                    id: 'authorship',
-                    blocks: [new FieldGroupBlock([
-                        new FieldColumn(
-                            Field::text('author_name', labelKey: 'auction.fields.author_name')->attributes(['maxlength' => '255']),
-                            md: 12,
-                        ),
-                    ])],
-                    title: '',
-                    titleKey: 'auction.editor.ownership',
-                ),
             ],
             labelKey: 'auction.editor.tabs.settings',
         );
