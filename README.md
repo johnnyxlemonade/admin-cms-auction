@@ -7,8 +7,8 @@
 
 `johnnyxlemonade/admin-cms-auction` is an optional CMS module with the
 `cms.auction` code. When present in the Composer installation, it provides
-auction management at `<admin-base>/content/auction` (for the standard `/admin`
-base path, `/admin/content/auction`).
+auction management at `<admin-base>/cms/auction` (for the standard `/admin`
+base path, `/admin/cms/auction`).
 
 An auction root stores its author name, owner, starting price in CZK, auction
 date, auction state, external URL, and shared display settings. The author name

@@ -39,9 +39,9 @@ final class AuctionAdminEditorDefinitionFactoryTest extends TestCase
     public function testCreatesSingleLocaleEditorWithRichTextContentField(): void
     {
         $router = new Router();
-        $router->getNamed('admin.content.module.index', '/admin/content/{module}', ControllerAction::for('AuctionController', 'index'));
-        $router->postNamed('admin.content.module.update', '/admin/content/{module}/edit/{id}', ControllerAction::for('AuctionController', 'update'));
-        $router->postNamed('admin.content.module.ajax.entity', '/admin/content/{module}/ajax/{id}', ControllerAction::for('AuctionController', 'save'));
+        $router->getNamed('admin.cms.module.index', '/admin/cms/{module}', ControllerAction::for('AuctionController', 'index'));
+        $router->postNamed('admin.cms.module.update', '/admin/cms/{module}/edit/{id}', ControllerAction::for('AuctionController', 'update'));
+        $router->postNamed('admin.cms.module.ajax.entity', '/admin/cms/{module}/ajax/{id}', ControllerAction::for('AuctionController', 'save'));
         $factory = new AuctionAdminEditorDefinitionFactory(new UrlGenerator($router), $this->routes());
 
         $editor = $factory->create(
@@ -108,9 +108,9 @@ final class AuctionAdminEditorDefinitionFactoryTest extends TestCase
     public function testSharedLayoutAndDomainFieldsRemainIntact(): void
     {
         $router = new Router();
-        $router->getNamed('admin.content.module.index', '/admin/content/{module}', ControllerAction::for('EditorController', 'index'));
-        $router->postNamed('admin.content.module.update', '/admin/content/{module}/edit/{id}', ControllerAction::for('EditorController', 'update'));
-        $router->postNamed('admin.content.module.ajax.entity', '/admin/content/{module}/ajax/{id}', ControllerAction::for('EditorController', 'save'));
+        $router->getNamed('admin.cms.module.index', '/admin/cms/{module}', ControllerAction::for('EditorController', 'index'));
+        $router->postNamed('admin.cms.module.update', '/admin/cms/{module}/edit/{id}', ControllerAction::for('EditorController', 'update'));
+        $router->postNamed('admin.cms.module.ajax.entity', '/admin/cms/{module}/ajax/{id}', ControllerAction::for('EditorController', 'save'));
         $factory = new AuctionAdminEditorDefinitionFactory(new UrlGenerator($router), $this->routes());
         $upload = new AdminFileUploadCollection(
             moduleCode: 'auction',
@@ -165,7 +165,7 @@ final class AuctionAdminEditorDefinitionFactoryTest extends TestCase
         self::assertTrue($header->context()->items()[0]->active());
         self::assertSame('auction.editor.title', $header->titleKey());
         self::assertSame('auction.module.name', $header->breadcrumbs()[0]['labelKey'] ?? null);
-        self::assertSame('/admin/content/auction', $header->actions()[0]->href());
+        self::assertSame('/admin/cms/auction', $header->actions()[0]->href());
         self::assertTrue($header->actions()[1]->submit());
         $saveBar = $editor->saveBar();
         self::assertNotNull($saveBar);
