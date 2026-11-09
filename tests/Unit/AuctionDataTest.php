@@ -37,6 +37,39 @@ final class AuctionDataTest extends TestCase
     }
 
     /**
+     * Nepovinna cena zustava textova a rozpracovana data mohou byt prazdna
+     */
+    public function testOptionalTextPriceAndEmptyDomainValuesRemainValid(): void
+    {
+        foreach (['', '400 000 Kč', 'Cena na vyžádání'] as $price) {
+            $data = AuctionData::fromEditor(['starting_price' => $price, 'auction_at' => '', 'auction_state' => '', 'location' => '', 'external_url' => '']);
+            $values = (new CmsDomainMapping(AuctionData::class))->values($data);
+            self::assertSame($price === '' ? null : $price, $values['root']['starting_price']);
+        }
+    }
+
+    /**
+     * Vice domenovych chyb zachova vlastni nazvy poli
+     */
+    public function testDomainErrorsAreCollectedByField(): void
+    {
+        try {
+            AuctionData::fromEditor(['starting_price' => '-1', 'auction_at' => 'invalid', 'external_url' => 'javascript:alert(1)', 'auction_state' => 'unknown']);
+            self::fail('Invalid domain accepted');
+        } catch (\Lemonade\Cms\Content\CmsContentValidationException $exception) {
+            foreach (['starting_price', 'auction_at', 'external_url', 'auction_state'] as $field) {
+                self::assertArrayHasKey($field, $exception->errors());
+            }
+        }
+        try {
+            AuctionData::fromEditor(['location' => ['nested'], 'external_url' => new \stdClass()]);
+            self::fail('Structured domain accepted');
+        } catch (\Lemonade\Cms\Content\CmsContentValidationException $exception) {
+            self::assertSame(['external_url', 'location'], array_keys($exception->errors()));
+        }
+    }
+
+    /**
      * @dataProvider invalidValues
      * @param array<string,mixed> $data
      */

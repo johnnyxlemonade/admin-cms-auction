@@ -36,7 +36,6 @@ final readonly class AuctionEditorValidationSchema
             ->field('locale', $this->translator->get('auction.editor.content'))
                 ->required($this->translator->get('auction.validation.locale_required'))
             ->field('title', $this->translator->get('auction.fields.title'))
-                ->required($this->translator->get('auction.validation.title_required'))
                 ->maxLength(180, $this->translator->get('auction.validation.title_max_length'))
             ->field('author_name', $this->translator->get('auction.fields.author_name'))
                 ->maxLength(255, $this->translator->get('auction.validation.author_max_length'))

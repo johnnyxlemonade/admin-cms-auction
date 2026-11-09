@@ -211,6 +211,32 @@ final class AuctionAdminTransportTest extends TestCase
         $created = $transport->dispatch('auction', null, ['action' => 'create', 'payload' => []]);
         self::assertTrue($created->successful());
         $id = $created->data()['id'];
+        // Nevyplneny koncept nema technickou URL a opakovane ulozeni nic nezapisuje.
+        $draft = ['locale' => 'cs', 'title' => ''];
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $draft])->successful());
+        self::assertSame([], $db->table('cms_route')->getArray());
+        $snapshot = $this->contentSnapshot($db);
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $draft])->successful());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        $invalid = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => ['publication_state' => '2'] + $draft]);
+        self::assertArrayHasKey('title', $invalid->errors());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        foreach ([['summary' => ['invalid'], 'content' => ['invalid']], ['page_title' => str_repeat('x', 181), 'meta_description' => str_repeat('x', 256)]] as $invalidFields) {
+            $invalid = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $invalidFields + $draft]);
+            self::assertSame(array_keys($invalidFields), array_keys($invalid->errors()));
+            self::assertSame($snapshot, $this->contentSnapshot($db));
+        }
+        $invalidFields = ['auction_at' => '2028-02-30T12:00', 'auction_state' => 'foreign', 'external_url' => 'javascript:invalid'];
+        $invalid = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $invalidFields + $draft]);
+        foreach (array_keys($invalidFields) as $field) {
+            self::assertArrayHasKey($field, $invalid->errors());
+        }
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        foreach (['400 000 Kč', 'Cena na vyžádání'] as $price) {
+            self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => ['starting_price' => $price] + $draft])->successful());
+            self::assertSame($price, ($db->table('cms_auction')->where('id', $id)->first() ?? [])['starting_price']);
+        }
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $draft])->successful());
         $domain = ['starting_price' => '1234567890123.50', 'auction_at' => '2028-02-29T14:30', 'auction_state' => 'active', 'external_url' => 'https://example.test/auction'];
         $payload = $domain + ['locale' => 'cs', 'title' => 'První zpráva', 'location' => 'Praha', 'page_title' => 'SEO title', 'meta_description' => 'SEO description', 'tags' => 'Praha, Brno, Praha', 'publication_state' => '2', 'published_at' => '2027-01-22T12:30'];
         $defaults = $db->table('cms_auction')->where('id', $id)->first() ?? [];
@@ -243,8 +269,19 @@ final class AuctionAdminTransportTest extends TestCase
         $before = $db->table('system_audit_log')->getArray();
         self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload])->successful());
         self::assertCount(count($before), $db->table('system_audit_log')->getArray());
+        $ordinary = $payload;
+        unset($ordinary['publication_state'], $ordinary['published_at']);
+        $snapshot = $this->contentSnapshot($db);
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $ordinary])->successful());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        $invalid = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => ['title' => ''] + $ordinary]);
+        self::assertArrayHasKey('title', $invalid->errors());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        self::assertTrue($transport->dispatch('auction', $id, ['action' => 'save', 'payload' => ['publication_state' => null] + $ordinary])->successful());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
         $payload['publication_state'] = '1';
         $payload['published_at'] = '';
+        $payload['title'] = '';
         $unpublished = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload]);
         self::assertTrue($unpublished->successful());
         self::assertSame(['publication_state' => '1', 'published_at' => ''], $unpublished->data()['editorFields']);
@@ -264,6 +301,7 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertSame(0, (int) (($db->table('cms_auction')->where('id', $id)->first() ?? [])['show_author'] ?? -1));
         self::assertSame('English auction', ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['title'] ?? null);
         self::assertSame('London', ($db->table('cms_auction_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['location'] ?? null);
+        $payload['title'] = 'První zpráva';
         $payload['publication_state'] = '2';
         $republished = $transport->dispatch('auction', $id, ['action' => 'save', 'payload' => $payload]);
         self::assertTrue($republished->successful());
@@ -585,9 +623,10 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertSame([$first, $second], $ids($read(filters: ['auctionState' => 'active'])));
         self::assertSame([], $ids($read(filters: ['auctionState' => 'cancelled'])));
         $db->table('cms_auction')->where('id', $second)->set(['starting_price' => '2.00'])->update();
-        self::assertSame([$second, $first], $ids($read(sort: 'startingPrice')));
+        // Cena je textova, a proto se i ciselne vypadajici hodnoty radi jako text.
+        self::assertSame([$first, $second], $ids($read(sort: 'startingPrice')));
         $domainResponse = $this->gridResponse($gridController, ['q' => 'Read fixture', 'auctionState' => 'active', 'sort' => 'startingPrice']);
-        self::assertSame([$second, $first], array_map('intval', array_column($domainResponse['items'], 'id')));
+        self::assertSame([$first, $second], array_map('intval', array_column($domainResponse['items'], 'id')));
 
         $db->statement('UPDATE system_role SET is_super_admin = 0 WHERE id = 1');
         $db->statement('DELETE FROM system_role_permission');
@@ -631,5 +670,20 @@ final class AuctionAdminTransportTest extends TestCase
         self::assertIsArray($data);
 
         return $data;
+    }
+
+    /**
+     * Zachyti obsah, rezervace i audit pro kontrolu rollbacku a no-op
+     *
+     * @phpstan-impure
+     * @return array<string,list<array<string,mixed>>>
+     */
+    private function contentSnapshot(Database $db): array
+    {
+        $snapshot = [];
+        foreach (['cms_auction', 'cms_auction_translation', 'cms_auction_translation_tag', 'cms_route', 'system_audit_log'] as $table) {
+            $snapshot[$table] = $db->table($table)->orderBy('id', 'ASC')->getArray();
+        }
+        return $snapshot;
     }
 }
