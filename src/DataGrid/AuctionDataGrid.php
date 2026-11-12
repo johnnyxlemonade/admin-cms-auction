@@ -218,8 +218,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
                             shape: 'rounded',
                         )
                         : $this->thumbnails->image(
-                            module: 'cms.auction',
-                            imageId: (string) $featuredImage['id'],
+                            fileId: (int) $featuredImage['id'],
                             alt: $displayTitle,
                             fallback: null,
                             size: 'compact',

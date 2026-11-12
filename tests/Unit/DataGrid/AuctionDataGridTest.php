@@ -320,7 +320,7 @@ final class AuctionDataGridTest extends TestCase
         );
         $variants = new ImageVariantRegistry();
         $variants->register(
-            variant: 'datagrid',
+            variant: 'admin-datagrid',
             definition: new ImageVariantDefinition(
                 dimensions: new ImageDimensions(32, 32),
                 format: ImageFormat::Webp,
