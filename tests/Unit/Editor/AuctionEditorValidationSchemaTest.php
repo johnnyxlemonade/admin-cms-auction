@@ -62,7 +62,7 @@ final class AuctionEditorValidationSchemaTest extends TestCase
      */
     private function schema(): AuctionEditorValidationSchema
     {
-        $translator = $this->createMock(TranslatorInterface::class);
+        $translator = self::createStub(TranslatorInterface::class);
         $translator->method('get')->willReturnCallback(static fn(string $key): string => $key);
 
         return new AuctionEditorValidationSchema($translator);

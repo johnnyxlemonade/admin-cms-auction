@@ -7,6 +7,7 @@ namespace Lemonade\Cms\Auction\Tests\Unit;
 use DomainException;
 use Lemonade\Cms\Auction\AuctionData;
 use Lemonade\Cms\Content\CmsDomainMapping;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -69,10 +70,8 @@ final class AuctionDataTest extends TestCase
         }
     }
 
-    /**
-     * @dataProvider invalidValues
-     * @param array<string,mixed> $data
-     */
+    /** @param array<string,mixed> $data */
+    #[DataProvider('invalidValues')]
     public function testRejectsInvalidValuesWithExistingKey(array $data, string $key): void
     {
         $this->expectException(DomainException::class);

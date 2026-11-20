@@ -105,12 +105,12 @@ final class AuctionDataGridTest extends TestCase
     public function testAuctionStateAndLocationAreAppliedToCountAndRows(): void
     {
         $queries = [];
-        $count = $this->createMock(DatabaseResultInterface::class);
+        $count = self::createStub(DatabaseResultInterface::class);
         $count->method('row_array')->willReturn(['numrows' => 0]);
-        $rows = $this->createMock(DatabaseResultInterface::class);
+        $rows = self::createStub(DatabaseResultInterface::class);
         $rows->method('result_array')->willReturn([]);
         $results = [$count, $rows];
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(static fn(string $name): string => $name);
         $driver->method('query')->willReturnCallback(
             static function (string $sql) use (&$queries, &$results): DatabaseResultInterface {
@@ -124,7 +124,7 @@ final class AuctionDataGridTest extends TestCase
             },
         );
         $query = new DataGridQuery(1, 25, 'startingPrice', 'asc', 'Praha', ['auctionState' => 'active']);
-        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()))->listForDataGrid($query, 'cs', definition: AuctionDataGrid::queryDefinition());
+        (new CmsContentDataGrid(new Database(self::createStub(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()))->listForDataGrid($query, 'cs', definition: AuctionDataGrid::queryDefinition());
 
         self::assertCount(2, $queries);
         foreach ($queries as $sql) {
@@ -198,12 +198,12 @@ final class AuctionDataGridTest extends TestCase
     public function testOwnershipScopeFiltersCountAndRowsInDatabaseQuery(): void
     {
         $queries = [];
-        $count = $this->createMock(DatabaseResultInterface::class);
+        $count = self::createStub(DatabaseResultInterface::class);
         $count->method('row_array')->willReturn(['numrows' => 0]);
-        $articles = $this->createMock(DatabaseResultInterface::class);
+        $articles = self::createStub(DatabaseResultInterface::class);
         $articles->method('result_array')->willReturn([]);
         $results = [$count, $articles];
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(
             static fn(string $identifier): string => $identifier,
         );
@@ -219,7 +219,7 @@ final class AuctionDataGridTest extends TestCase
             },
         );
 
-        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()))->listForDataGrid($this->query('cs'), 'cs', 42, AuctionDataGrid::queryDefinition());
+        (new CmsContentDataGrid(new Database(self::createStub(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()))->listForDataGrid($this->query('cs'), 'cs', 42, AuctionDataGrid::queryDefinition());
 
         self::assertCount(2, $queries);
         self::assertStringContainsString('a.owner_id = ?', $queries[0]);
@@ -253,14 +253,14 @@ final class AuctionDataGridTest extends TestCase
      */
     private function grid(array $articles, array $permissions = []): AuctionDataGrid
     {
-        $count = $this->createMock(DatabaseResultInterface::class);
+        $count = self::createStub(DatabaseResultInterface::class);
         $count->method('row_array')->willReturn(['numrows' => count($articles)]);
-        $articleResult = $this->createMock(DatabaseResultInterface::class);
+        $articleResult = self::createStub(DatabaseResultInterface::class);
         $articleResult->method('result_array')->willReturn($articles);
-        $fileResult = $this->createMock(DatabaseResultInterface::class);
+        $fileResult = self::createStub(DatabaseResultInterface::class);
         $fileResult->method('result_array')->willReturn([]);
         $results = [$count, $articleResult, $fileResult];
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(
             static fn(string $identifier): string => $identifier,
         );
@@ -274,7 +274,7 @@ final class AuctionDataGridTest extends TestCase
                 return $result;
             },
         );
-        $connection = $this->createMock(ConnectionInterface::class);
+        $connection = self::createStub(ConnectionInterface::class);
         $connection->method('select')->willReturnCallback(
             static function (string $sql) use ($permissions): array {
                 if (!str_contains($sql, 'system_role_permission')) {
@@ -292,10 +292,10 @@ final class AuctionDataGridTest extends TestCase
             $database,
             new CacheManager(new ArrayCacheItemPool()),
         );
-        $principal = $this->createMock(CurrentPrincipalProviderInterface::class);
+        $principal = self::createStub(CurrentPrincipalProviderInterface::class);
         $principal->method('currentUser')->willReturn(new AuthenticatedUser(0, 'fixture@example.test'));
         $authorization = new AuthorizationService($principal, $database);
-        $translator = $this->createMock(TranslatorInterface::class);
+        $translator = self::createStub(TranslatorInterface::class);
         $translator->method('get')->willReturnCallback(
             static fn(string $key): string => $key,
         );
@@ -329,7 +329,7 @@ final class AuctionDataGridTest extends TestCase
         );
 
         return new AuctionDataGrid(
-            new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()),
+            new CmsContentReadModel(new Database(self::createStub(ConnectionInterface::class), $driver), CmsAuctionServiceProvider::contentDefinition()),
             $authorization,
             $translator,
             $actionPresentation,
