@@ -10,12 +10,12 @@ use Lemonade\Framework\Database\Schema\Blueprint\TableBlueprint;
 use Lemonade\Framework\Database\Schema\Schema;
 
 /**
- * Vytvari oddelene tabulky drazeb a jejich lokalizovanych mutaci
+ * Creates Auction article roots and their localized translations
  */
 final readonly class CreateAuctionArticles implements MigrationInterface
 {
     /**
-     * Vrati stabilni identifikator migrace drazeb
+     * Returns the stable Auction migration identifier
      */
     public static function identifier(): string
     {
@@ -23,7 +23,7 @@ final readonly class CreateAuctionArticles implements MigrationInterface
     }
 
     /**
-     * Vytvori spolecne CMS sloupce a domenove udaje drazeb
+     * Creates Auction tables using the shared CMS content schema
      */
     public function up(Schema $schema): void
     {

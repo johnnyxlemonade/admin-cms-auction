@@ -9,32 +9,88 @@ use Lemonade\Cms\Content\CmsLocalized;
 use Lemonade\Cms\Content\CmsRoot;
 
 /**
- * Predstavuje globalni a lokalizovane domenove udaje drazby
+ * Represents root and localized domain data of one auction
  */
 final readonly class AuctionData
 {
     /**
-     * Nastavuje autora, cenu, termin, stav, odkaz a lokalitu
+     * Creates the auction data stored by the shared CMS lifecycle
      */
     public function __construct(
         #[CmsRoot('author_name')]
-        public ?string $authorName,
+        private ?string $authorName,
         #[CmsRoot('starting_price')]
-        public ?string $startingPrice,
+        private ?string $startingPrice,
         #[CmsRoot('currency')]
-        public string $currency,
+        private string $currency,
         #[CmsRoot('auction_at')]
-        public ?string $auctionAt,
+        private ?string $auctionAt,
         #[CmsRoot('auction_state')]
-        public string $auctionState,
+        private string $auctionState,
         #[CmsRoot('external_url')]
-        public ?string $externalUrl,
+        private ?string $externalUrl,
         #[CmsLocalized('location')]
-        public ?string $location,
+        private ?string $location,
     ) {}
 
     /**
-     * Validuje a normalizuje domenove hodnoty editoru
+     * Returns the optional author name
+     */
+    public function getAuthorName(): ?string
+    {
+        return $this->authorName;
+    }
+
+    /**
+     * Returns the stored starting price text
+     */
+    public function getStartingPrice(): ?string
+    {
+        return $this->startingPrice;
+    }
+
+    /**
+     * Returns the stored currency code
+     */
+    public function getCurrency(): string
+    {
+        return $this->currency;
+    }
+
+    /**
+     * Returns the stored auction date and time
+     */
+    public function getAuctionAt(): ?string
+    {
+        return $this->auctionAt;
+    }
+
+    /**
+     * Returns the auction business state
+     */
+    public function getAuctionState(): string
+    {
+        return $this->auctionState;
+    }
+
+    /**
+     * Returns the optional external auction URL
+     */
+    public function getExternalUrl(): ?string
+    {
+        return $this->externalUrl;
+    }
+
+    /**
+     * Returns the localized auction location
+     */
+    public function getLocation(): ?string
+    {
+        return $this->location;
+    }
+
+    /**
+     * Validates and normalizes domain values submitted by the editor
      *
      * @param array<string,mixed> $data
      */

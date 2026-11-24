@@ -59,14 +59,14 @@ final class AuctionDataTest extends TestCase
             self::fail('Invalid domain accepted');
         } catch (\Lemonade\Cms\Content\CmsContentValidationException $exception) {
             foreach (['starting_price', 'auction_at', 'external_url', 'auction_state'] as $field) {
-                self::assertArrayHasKey($field, $exception->errors());
+                self::assertArrayHasKey($field, $exception->getErrors());
             }
         }
         try {
             AuctionData::fromEditor(['location' => ['nested'], 'external_url' => new \stdClass()]);
             self::fail('Structured domain accepted');
         } catch (\Lemonade\Cms\Content\CmsContentValidationException $exception) {
-            self::assertSame(['external_url', 'location'], array_keys($exception->errors()));
+            self::assertSame(['external_url', 'location'], array_keys($exception->getErrors()));
         }
     }
 

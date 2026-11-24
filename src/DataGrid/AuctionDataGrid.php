@@ -37,12 +37,12 @@ use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
- * Promita Auction clanky do shared Admin DataGridu bez translation N+1 dotazu
+ * Projects Auction articles into the shared Admin DataGrid without per-row queries
  */
 final readonly class AuctionDataGrid implements DataGridProviderInterface
 {
     /**
-     * Nastavuje Auction persistence projekci pro DataGrid
+     * Receives Auction queries, authorization and grid presentation services
      */
     public function __construct(
         private CmsContentReadModel $auction,
@@ -58,7 +58,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     ) {}
 
     /**
-     * Deklaruje pouze domenove rozsireni standardniho CMS dotazu
+     * Defines auction columns and the business-state filter for the shared grid
      */
     public static function queryDefinition(): CmsDataGridDefinition
     {
@@ -76,7 +76,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Vrati pravo potrebne pro nacteni Auction prehledu
+     * Returns the permission required to read the Auction grid
      */
     public function permission(): string
     {
@@ -84,7 +84,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Deklaruje sloupce, search, filtry a deterministic razeni prehledu
+     * Defines columns, filters and deterministic sorting for Auction
      */
     public function dataGridDefinition(): DataGridDefinition
     {
@@ -139,7 +139,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Vrati typed radky z jedine batch projekce Auction modelu
+     * Returns typed rows from a batched Auction projection
      */
     public function execute(DataGridQuery $query): DataGridResult
     {
@@ -171,7 +171,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Promita jeden clanek na odkazovatelny aktivni nebo read-only smazany radek
+     * Projects one article into an active or deleted grid row
      *
      * @param array<string,mixed> $article
      * @param array{
@@ -250,7 +250,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Vrati lokalizovany label publication stavu z databazove hodnoty
+     * Returns the localized label for a stored publication state
      */
     private function publicationStateLabel(int $value): string
     {
@@ -264,7 +264,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Nabizi editaci pouze jako neautoritativni presentation akci
+     * Offers row actions as presentation after authorization checks
      *
      * @return list<DataGridRowActionDefinition>
      */
@@ -301,7 +301,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Zobrazi auditni datum nad identitou uzivatele
+     * Stacks an audit date above the actor name
      */
     private function auditMetadataCell(mixed $date, mixed $actor): StackedCell
     {
@@ -315,7 +315,7 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Zobrazi datum bez sekund podle jazyka administrace
+     * Formats a date without seconds for the Admin UI locale
      */
     private function formatDateTime(mixed $value): string
     {
@@ -336,15 +336,15 @@ final readonly class AuctionDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Sklada canonical URL editoru s explicitni content locale mutace
+     * Builds the Admin editor URL for a selected content locale
      */
-    private function editUrl(int $articleId, ?string $contentLocale = null): string
+    private function editUrl(int $articleId, string $contentLocale): string
     {
         $url = $this->urls->route(
             $this->routes->managementRouteName('auction', 'edit'),
             ['module' => 'auction', 'id' => $articleId],
         );
 
-        return $contentLocale === null ? $url : $url . '?locale=' . rawurlencode($contentLocale);
+        return $url . '?locale=' . rawurlencode($contentLocale);
     }
 }

@@ -18,7 +18,7 @@ use Lemonade\Admin\Presentation\AdminFilePresentation;
 use Lemonade\Framework\Database\Migration\MigrationInterface;
 
 /**
- * Deklaruje optional CMS Auction modul a jeho schema
+ * Declares the Auction module, permissions, file capabilities and migrations
  */
 final readonly class ModuleManifest implements
     ModuleManifestInterface,
@@ -29,7 +29,7 @@ final readonly class ModuleManifest implements
     public const string CODE = 'cms.auction';
 
     /**
-     * Vrati stabilni kod Auction modulu
+     * Returns the stable Auction module code
      */
     public function code(): string
     {
@@ -37,7 +37,7 @@ final readonly class ModuleManifest implements
     }
 
     /**
-     * Vrati prekladovy klic nazvu modulu
+     * Returns the translation key for the Auction module name
      */
     public function labelKey(): string
     {
@@ -45,7 +45,7 @@ final readonly class ModuleManifest implements
     }
 
     /**
-     * Vrati provider runtime contributions modulu
+     * Returns the Auction runtime provider class
      */
     public function runtimeProvider(): string
     {
@@ -53,7 +53,7 @@ final readonly class ModuleManifest implements
     }
 
     /**
-     * Vrati migrace aplikovane standardnim migration lifecycle
+     * Returns migrations for the standard deployment lifecycle
      *
      * @return list<class-string<MigrationInterface>>
      */
@@ -63,7 +63,7 @@ final readonly class ModuleManifest implements
     }
 
     /**
-     * Vrati metadata generic Admin module transportu
+     * Returns Admin navigation and presentation metadata
      */
     public function adminMetadata(): AdminModuleMetadata
     {
@@ -79,7 +79,7 @@ final readonly class ModuleManifest implements
     }
 
     /**
-     * Vraci file capability Auction modulu
+     * Returns the system media capabilities of Auction articles
      */
     public function fileCapabilities(): AdminFileCapabilities
     {
@@ -93,7 +93,7 @@ final readonly class ModuleManifest implements
     }
 
     /**
-     * Vrati prava vyzadovana pro skutecne Auction operace
+     * Returns permissions required by Auction operations
      *
      * @return list<PermissionDefinition>
      */
@@ -116,7 +116,7 @@ final readonly class ModuleManifest implements
     }
 
     /**
-     * Deklaruje presentation udalosti skutecnych mutaci obsahu Dražeb
+     * Returns presentation metadata for Auction audit events
      *
      * @return list<AuditEventDefinition>
      */

@@ -10,6 +10,7 @@ use Lemonade\Admin\Editor\EditorRegistry;
 use Lemonade\Admin\Localization\ClientTranslationGroupRegistry;
 use Lemonade\Admin\Page\ModulePageRegistry;
 use Lemonade\Cms\Auction\CmsAuctionServiceProvider;
+use Lemonade\Cms\Auction\Public\PublishedAuctionReadModel;
 use Lemonade\Framework\Container\Container;
 use Lemonade\Framework\Container\ContainerInterface;
 use Lemonade\Framework\Localization\TranslationResourceRegistry;
@@ -65,6 +66,7 @@ final class CmsAuctionServiceProviderTest extends TestCase
 
         (new CmsAuctionServiceProvider())->register($container);
 
+        self::assertTrue($container->isBound(PublishedAuctionReadModel::class));
         self::assertTrue($container->isBound('admin.cms.auction.action.create'));
         self::assertSame([], iterator_to_array($container->tagged(RouteRegistrarInterface::class)));
     }

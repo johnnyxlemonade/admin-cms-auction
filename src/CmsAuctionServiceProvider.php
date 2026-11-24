@@ -13,6 +13,7 @@ use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Cms\Auction\DataGrid\AuctionDataGrid;
 use Lemonade\Cms\Auction\Editor\AuctionEditor;
 use Lemonade\Cms\Auction\Editor\AuctionEditorValidationSchema;
+use Lemonade\Cms\Auction\Public\PublishedAuctionReadModel;
 use Lemonade\Cms\Content\CmsContentDefinition;
 use Lemonade\Cms\Content\CmsContentLifecycle;
 use Lemonade\Cms\Content\CmsDomainMapping;
@@ -28,15 +29,16 @@ use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Framework\Support\Slug\Slugger;
 
 /**
- * Pripojuje modul k existujicimu sdilenemu CMS Admin transportu
+ * Connects Auction to the shared CMS Admin transport and public reader
  */
 final readonly class CmsAuctionServiceProvider implements ServiceProviderInterface, BootableServiceProviderInterface
 {
     /**
-     * Registruje editorove action transporty modulu
+     * Registers Auction services before the container is frozen
      */
     public function register(ContainerBuilderInterface $container): void
     {
+        $container->scoped(PublishedAuctionReadModel::class, PublishedAuctionReadModel::class);
         $container->scoped('cms.auction.definition', static fn(): CmsContentDefinition => self::contentDefinition());
         $container->scoped('cms.auction.content_model', static fn(ContainerInterface $container): CmsContentModel => new CmsContentModel(
             $container->get(Database::class),
@@ -65,7 +67,7 @@ final readonly class CmsAuctionServiceProvider implements ServiceProviderInterfa
     }
 
     /**
-     * Vrati registrovane tabulky a atributove mapovani obsahu
+     * Returns the Auction table and domain mapping definition
      */
     public static function contentDefinition(): CmsContentDefinition
     {
@@ -83,7 +85,7 @@ final readonly class CmsAuctionServiceProvider implements ServiceProviderInterfa
     }
 
     /**
-     * Pripoji preklady, grid, editor, stranky a akce modulu
+     * Connects Auction resources and Admin contributions after registration
      */
     public function boot(ContainerInterface $container): void
     {
@@ -91,7 +93,7 @@ final readonly class CmsAuctionServiceProvider implements ServiceProviderInterfa
     }
 
     /**
-     * Nastavi stavajici presentation a action providery modulu
+     * Creates the shared CMS Admin provider for Auction
      */
     public static function adminProvider(): CmsContentAdminProvider
     {

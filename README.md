@@ -20,9 +20,69 @@ image, reading time, and tags.
 
 The module uses the shared CMS content lifecycle for drafts, audited saves,
 soft deletion, restoration, and canonical URL reservations. Images, galleries,
-and attachments use Admin Platform file collections. The package does not
-provide public routes, templates, or auction rendering; the host application
-decides how to use the stored display metadata.
+and attachments use Admin Platform file collections. The host owns public
+controllers, templates, HTML, design, presentation-specific calculations and
+the framework sitemap provider.
+
+## Public auctions
+
+`CmsAuctionServiceProvider` registers `PublishedAuctionReadModel`. `record()`
+returns one visible translation or `null`; `collection()` returns a typed
+`PublishedAuctionCollection`. `latest()` returns recent auctions without a count
+query. `others()` returns recent auctions except the current record for detail pages.
+`recommended()` returns recent records marked as recommended. Lists support a
+localized tag; `collection()` also supports auction business state and
+recommendation filters. The business state (`preparing`, `active`, `ended`,
+`cancelled`) never replaces the separate CMS publication rules.
+
+```php
+use Lemonade\Cms\Auction\Public\PublishedAuctionReadModel;
+
+$auction = $auctions->record($id, $locale);
+$page = $auctions->collection($locale, page: $pageNumber, perPage: 12, tag: $tag);
+$recent = $auctions->others($id, $locale, limit: 2);
+$navigation = $paginationComponent->render($page->getPagination(
+    basePath: $request->getUri()->getPath(),
+    query: ['tag' => $tag],
+));
+
+$priceText = $auction?->getStartingPrice();
+$currency = $auction?->getCurrency();
+$auctionTime = $auction?->getAuctionAt();
+$businessState = $auction?->getAuctionState();
+$gallery = $auction?->getGallery() ?? [];
+$attachments = $auction?->getAttachments() ?? [];
+```
+
+The starting price remains stored text, not a numeric amount. `getAuctionAt()`
+returns `?DateTimeImmutable`; the host formats the date and interprets the
+business state for presentation. `PublishedAuction` also exposes localized
+summary, content, SEO, location, author, tags, display settings and canonical
+URL through typed getters. It implements `PublishedMediaInterface` with
+`getThumbnail()`, ordered `getGallery()` and ordered `getAttachments()` based on
+batched `FileReadModel` metadata. The host creates presentation URLs for files.
+`isPublicInAnyLocale($id)` lets a host download handler check the public
+availability of an attachment owner.
+
+All public queries require an available module, enabled language, published
+translation with a reached publication time, nondeleted auction and active
+canonical route. `collection()` uses filtered SQL `COUNT` and `LIMIT/OFFSET`;
+it never loads the whole result set for pagination. Tags and files are loaded
+in batches.
+
+`PublishedAuctionReadModel::sitemapEntries($locale)` yields lightweight
+`PublishedAuctionSitemapEntry` candidates with `getPublicUrl()` and
+`getUpdatedAt()`. The update time is the latest root, translation or canonical
+route change. The host selects locales and candidates in its existing framework
+`sitemap.providers` registration and passes them to `SitemapUrl`:
+
+```php
+use Lemonade\Framework\Discovery\Sitemap\SitemapUrl;
+
+foreach ($auctions->sitemapEntries($locale) as $entry) {
+    yield SitemapUrl::create($entry->getPublicUrl(), $entry->getUpdatedAt());
+}
+```
 
 ## Requirements
 
@@ -49,7 +109,7 @@ Permissions are not granted to roles automatically.
 - Admin Platform owns shared editor components, file collections, upload
   transport, and `system_file` metadata.
 - CMS Core owns the shared content lifecycle and canonical route reservations.
-- The host owns public routes, rendering, and publication checks.
+- The host owns public routes, rendering, and sitemap selection.
 
 ## Development and QA
 

@@ -28,12 +28,12 @@ use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
- * Sklada indexovou stranku Auction managementu nad shared DataGrid transportem
+ * Builds Auction index and editor pages from shared Admin components
  */
 final readonly class AuctionModulePageProvider implements ModuleIndexPageProviderInterface, ModuleEditorPageProviderInterface
 {
     /**
-     * Nastavuje grid, authorization, preklady a URL pro Auction index
+     * Receives Auction grid, editor and shared Admin presentation services
      */
     public function __construct(
         private AuctionDataGrid $grid,
@@ -48,7 +48,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
     ) {}
 
     /**
-     * Vrati pravo potrebne pro otevreni Auction indexu
+     * Returns the permission required to open the Auction index
      */
     public function indexPermission(): string
     {
@@ -56,7 +56,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
     }
 
     /**
-     * Vytvori standardni Auction index s autorizovanou create akci
+     * Builds the Auction index with an authorized create action
      */
     public function index(string $locale): ModulePage
     {
@@ -102,7 +102,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
     }
 
     /**
-     * Auction nema full-page create presentation; draft se zaklada primary action
+     * Rejects the unused full-page create route because drafts use the index action
      *
      * @param array<string,string> $errors
      * @param array<string,mixed> $input
@@ -114,31 +114,13 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
     }
 
     /**
-     * Vytvori full-page editor existujici Auction entity
+     * Builds the full-page editor for an existing Auction article
      *
      * @param array<string,string> $errors
      * @param array<string,mixed> $input
      * @param array<string,mixed> $query
      */
     public function editor(EditorLoaded $editor, array $errors, array $input, string $locale, array $query = []): ModulePage
-    {
-        return $this->editorPage(
-            editor: $editor,
-            errors: $errors,
-            input: $input,
-            locale: $locale,
-            query: $query,
-        );
-    }
-
-    /**
-     * Pripravi package-owned editor view pro jeden content locale context
-     *
-     * @param array<string,string> $errors
-     * @param array<string,mixed> $input
-     * @param array<string,mixed> $query
-     */
-    private function editorPage(EditorLoaded $editor, array $errors, array $input, string $locale, array $query = []): ModulePage
     {
         $locales = $editor->data()['locales'];
         $selected = $this->resolveContentLocale($locales, $query);
@@ -203,7 +185,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
                         'meta_description' => (string) ($translation['meta_description'] ?? ''),
                         'url_segment' => $canonicalPath === '' ? '' : basename($canonicalPath),
                         ...\Lemonade\Admin\Cms\Content\CmsDisplaySettings::values($article),
-                        'publication_state' => CmsPublicationState::from((int) ($translation['publication_state'] ?? CmsPublicationState::New->value))->editorValue(),
+                        'publication_state' => CmsPublicationState::from((int) ($translation['publication_state'] ?? CmsPublicationState::New->value))->getEditorValue(),
                         'published_at' => (string) ($translation['published_at'] ?? ''),
                         'created_by_name' => (string) ($article['created_by_name'] ?? '—'),
                         'created_at' => (string) ($article['created_at'] ?? ''),
@@ -226,7 +208,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
     }
 
     /**
-     * Sestavi options nesmazanych lokalnich uzivatelu pro ownership transfer
+     * Returns assignable local users as owner options
      *
      * @return array<int,string>
      */
@@ -241,7 +223,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
     }
 
     /**
-     * Vybere povoleny content locale podle explicitniho query contextu
+     * Selects an available content locale from the request context
      *
      * @param list<array<string,mixed>> $locales
      * @param array<string,mixed> $query
@@ -270,7 +252,7 @@ final readonly class AuctionModulePageProvider implements ModuleIndexPageProvide
     }
 
     /**
-     * Vytvori linkove prepinani dostupnych content locales editoru
+     * Builds editor links for available content locales
      *
      * @param list<array<string,mixed>> $locales
      */

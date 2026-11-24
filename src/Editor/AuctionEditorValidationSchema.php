@@ -10,17 +10,17 @@ use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Validation\ValidationSchema;
 
 /**
- * Sklada frameworkovou validaci create a update vstupu editoru Dražeb
+ * Defines validation for Auction editor create and update payloads
  */
 final readonly class AuctionEditorValidationSchema
 {
     /**
-     * Nastavuje prekladovy zdroj chyb editorove validace
+     * Receives translations for editor validation messages
      */
     public function __construct(private TranslatorInterface $translator) {}
 
     /**
-     * Ponechava create bez formulovych hodnot pro okamzite zalozeni draftu
+     * Allows immediate draft creation without form values
      */
     public function forCreate(): ValidationSchema
     {
@@ -28,7 +28,7 @@ final readonly class AuctionEditorValidationSchema
     }
 
     /**
-     * Vymezuje flat payload jedne lokalizovane mutation a globalnich metadat
+     * Validates one localized mutation and root display settings
      */
     public function forUpdate(): ValidationSchema
     {
